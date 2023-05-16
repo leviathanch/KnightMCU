@@ -4,9 +4,11 @@ parameter M = 4;
 module Convolution_Test;
   reg clk;
   reg reset;
-  reg [0:N-1][0:63] x1; // matrix
-  reg [0:M-1][0:63] x2; // kernel
-  wire [0:N-M-1][0:63] y; // convoluted matrix
+  reg [255:0][63:0] x1; // matrix
+  reg [7:0] len1;
+  reg [255:0][63:0] x2; // kernel
+  reg [7:0] len2;
+  wire [255:0][63:0] y; // convoluted matrix
 
   initial begin
     // Initialize inputs
@@ -20,11 +22,14 @@ module Convolution_Test;
       $realtobits(0.9), $realtobits(1.0), $realtobits(1.1), $realtobits(1.2),
       $realtobits(1.3), $realtobits(1.4), $realtobits(1.5), $realtobits(1.6)
     };
+    len1 = 16;
+
     // Initialize x2 kernel
     x2 = {
       $realtobits(0.1), $realtobits(0.2),
       $realtobits(0.3), $realtobits(0.4)
     };
+    len2 = 4;
 
     // Enable waveform dumping
     $dumpfile("convolution.vcd");
@@ -58,9 +63,9 @@ module Convolution_Test;
   Convolution #(N, M) Convolution_inst (
     .clk(clk),
     .reset(reset),
-    .len1(N),
+    .len1(len1),
     .x1(x1),
-    .len2(M),
+    .len2(len2),
     .x2(x2),
     .y(y)
   );

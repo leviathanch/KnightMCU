@@ -11,7 +11,7 @@ module Convolution #(parameter num_fpus = 4) (
   reg [7:0] curr_col;                      // Current column being processed
   reg [7:0] fpu_count;                      // Counter for managing FPUs
   reg [255:0][63:0] partial_results[num_fpus];  // Partial results from each FPU
-  reg [num_fpus-1] fpus_idle;            // State of each FPU (0 - Busy, 1 - Idle)
+  reg [num_fpus] fpus_idle;            // State of each FPU (0 - Busy, 1 - Idle)
 
   // Declare input and output buffers for each FPU
   reg [255:0][63:0] input_buffers[num_fpus];
@@ -22,6 +22,7 @@ module Convolution #(parameter num_fpus = 4) (
   wire [num_fpus][63:0] fpu_out;
   reg [num_fpus][1:0]rmode;
   reg [num_fpus][2:0]fpu_op;
+  wire [num_fpus] ready;
 
   // FSM states
   reg [num_fpus][255:0] state;
@@ -29,9 +30,10 @@ module Convolution #(parameter num_fpus = 4) (
   parameter LOAD_INPUT = 1;
   parameter FPU_MULT = 2;
   parameter FPU_MULT_WAIT = 3;
-  parameter FPU_ADD = 4;
-  parameter FPU_ADD_WAIT = 5;
-  parameter ACCUMULATE_RESULTS = 6;
+  parameter FPU_MULT_FETCH = 4;
+  parameter FPU_ADD = 5;
+  parameter FPU_ADD_WAIT = 6;
+  parameter FPU_ADD_FETCH = 7;
   integer i;
 
   for (genvar i = 0; i < num_fpus; i = i + 1) begin
@@ -44,7 +46,7 @@ module Convolution #(parameter num_fpus = 4) (
       .opa(opa[i]),
       .opb(opb[i]),
       .out(fpu_out[i]),
-      .ready(),
+      .ready(ready[i]),
       .underflow(),
       .overflow(),
       .inexact(),
@@ -76,15 +78,40 @@ module Convolution #(parameter num_fpus = 4) (
             // Load input buffers for active FPUs
             //if (curr_col == 0)
             //  input_buffers[i] <= x1[curr_row + i*256 : curr_row + i*256 + 255];
-            state[i] <= IDLE;
+            state[i] <= FPU_MULT;
           end
+          /* originally we did:
+          for (i = 0; i < N-M; i = i + 1) begin : ADDER_BLOCK
+            temp[i] <= $realtobits(0);
+            for (k = 0; k < M; k = k + 1) begin
+              temp_real = $bitstoreal(temp[i]) + $bitstoreal(x1[i + k]) * $bitstoreal(x2[k]);
+              temp[i] <= $realtobits(temp_real);
+            end
+          end
+          */
           FPU_MULT: begin
+            // load x1[i+k] into opa
+            // load x2[k] into opb
+            // set operation multiply
+            // enable operation
           end
           FPU_MULT_WAIT: begin
+            // wait for operation being done
+          end
+          FPU_MULT_FETCH: begin
+            // fetch data into buffer
+            // reset
           end
           FPU_ADD: begin
+            // load buffer1 into opa
+            // load buffer2 into opb
+            // set operation addition
+            // enable operation
           end
           FPU_ADD_WAIT: begin
+            // wait for operation being done
+          end
+          FPU_ADD_FETCH: begin
           end
           ACCUMULATE_RESULTS: begin
           end

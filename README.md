@@ -1,6 +1,6 @@
 # The Knight coprocessor v1
 
-[Knight Industries Co-Process](knight.png)
+![Knight Industries Co-Process](knight.png)
 
 I can't call it the Knight Industries One Co-Processor, because Knight Industries is
 an actual company in New York, and the chess horse logo is also trade marked by them,

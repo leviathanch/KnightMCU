@@ -5,7 +5,8 @@ reg [31:0] b;
 reg [2:0] opcode;
 wire [31:0] result;
 
-mixed_precision_alu mpa (
+//mixed_precision_alu mpa (
+mixed_precision_ALU mpa (
   .clk(clk),
   .a(a),
   .b(b),

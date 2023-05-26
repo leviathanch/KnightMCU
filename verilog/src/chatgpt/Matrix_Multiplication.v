@@ -5,10 +5,10 @@ module Matrix_Multiplication (
   input wire         reset,
   input wire         enable,
   input wire [31:0]  operation_reg [6],
-  input wire [31:0]  matrixA_in [`SEQ_BITS:0][`SEQ_BITS:0],
-  input wire [31:0]  matrixB_in [`SEQ_BITS:0][`SEQ_BITS:0],
-  output reg [31:0]  matrixC_out [`SEQ_BITS:0][`SEQ_BITS:0],
-  output reg done
+  input wire [31:0]  matrixA_in [0:`SEQ_BITS][0:`SEQ_BITS],
+  input wire [31:0]  matrixB_in [0:`SEQ_BITS][0:`SEQ_BITS],
+  output reg [31:0]  matrixC_out [0:`SEQ_BITS][0:`SEQ_BITS],
+  output reg         done
 );
 
   // Internal registers and wires
@@ -43,9 +43,9 @@ module Matrix_Multiplication (
     if (reset) begin
       state <= IDLE;
       done <= 1;
-      for (int j=0; j< `SEQ_BITS; j++) begin
-        for (int i=0; i< `SEQ_BITS; j++) begin
-          matrixC_out[j][i] <= 0;
+      for (i=0; i<= `SEQ_BITS; i=i+1) begin
+        for (j=0; j<= `SEQ_BITS; j=j+1) begin
+          matrixC_out[i][j] <= 0;
         end
       end
     end
@@ -56,7 +56,7 @@ module Matrix_Multiplication (
             // Reset indices and result register
             state <= LOOP1;
             i <= 0;
-            j<= 0;
+            j <= 0;
             k <= 0;
             done <= 0;
             /* Operation registers:
@@ -66,17 +66,41 @@ module Matrix_Multiplication (
                3: width B
                4: height B
                5: done writing values, go!
-            */;
+            */
             N <= operation_reg[1]; // width A
             M <= operation_reg[2]; // height A
             P <= operation_reg[4]; // height B
           end
         LOOP1: begin // for (int i = 0; i < N; i++) {
+          if (i < N) begin
+            state <= LOOP2;
+          end
+          else begin
+            state <= IDLE;
+            done <= 1;
+          end
         end
         LOOP2: begin // for (int j = 0; j < P; j++) {
+          if (j < P) begin
+            state <= LOOP3;
+          end
+          else begin
+            state <= LOOP1;
+            i <= i + 1;
+            j <= 0;
+          end
         end
-        LOOP3: begin // or (int k = 0; k < M; k++) {
+        LOOP3: begin // for (int k = 0; k < M; k++) {
           matrixC_out[i][j] <= matrixC_out[i][j] + matrixA_in[i][k] * matrixB_in[k][j];
+          if (k < M - 1) begin
+            state <= LOOP3;
+            k <= k + 1;
+          end
+          else begin
+            state <= LOOP2;
+            j <= j + 1;
+            k <= 0;
+          end
         end
       endcase
     end

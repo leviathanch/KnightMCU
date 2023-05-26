@@ -37,10 +37,10 @@ module AI_Accelerator_Top (
   
   /* Operation registers:
      0: operation
-     1: height A
-     2: width A
-     3: height B
-     4: width B
+     1: width A
+     2: height A
+     3: width B
+     4: height B
      5: done writing values, go! 
   */
   reg [31:0] operation_reg [6];

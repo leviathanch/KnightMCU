@@ -15,6 +15,9 @@ module Matrix_Multiplication (
   reg integer i;
   reg integer j;
   reg integer k;
+  reg integer N; // width A
+  reg integer M; // height A
+  reg integer P; // height B
   reg integer state;
 
   // State definition
@@ -56,6 +59,17 @@ module Matrix_Multiplication (
             j<= 0;
             k <= 0;
             done <= 0;
+            /* Operation registers:
+               0: operation
+               1: width A
+               2: height A
+               3: width B
+               4: height B
+               5: done writing values, go!
+            */;
+            N <= operation_reg[1]; // width A
+            M <= operation_reg[2]; // height A
+            P <= operation_reg[4]; // height B
           end
         LOOP1: begin // for (int i = 0; i < N; i++) {
         end

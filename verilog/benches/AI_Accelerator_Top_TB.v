@@ -1,3 +1,5 @@
+`define SEQ_BITS 14
+
 module AI_Accelerator_Top_TB;
 
   // Parameters
@@ -35,8 +37,38 @@ module AI_Accelerator_Top_TB;
     wishbone_addr_i = 0;
     wishbone_we_i = 0;
     wishbone_data_i = 0;
-    
-    // Add your test case here
+
+    // Dump signals to VCD file
+    $dumpfile("waveform.vcd");
+    $dumpvars(0, AI_Accelerator_Top_TB);
+
+    // Write data to matrix A and matrix B
+    for (int i = 0; i <= `SEQ_BITS; i = i + 1) begin
+      for (int j = 0; j <= `SEQ_BITS; j = j + 1) begin
+        // Write data to matrix A
+        wishbone_addr_i = {2'b01, i[`SEQ_BITS+1:0], j[`SEQ_BITS:0]};
+        wishbone_we_i = 1'b1;        // Write operation
+        wishbone_data_i = 32'hAAAA;  // Data to be written
+        #10;                         // Wait for a few clock cycles
+        //wishbone_ack = 1'b0;         // Deassert the acknowledgement signal
+
+        // Write data to matrix B
+        wishbone_addr_i = {2'b10, i[`SEQ_BITS+1:0], j[`SEQ_BITS:0]};
+        wishbone_data_i = 32'h5555;  // Data to be written
+        #10;                         // Wait for a few clock cycles
+        //wishbone_ack = 1'b0;         // Deassert the acknowledgement signal
+      end
+    end
+
+    // Read data from matrix C
+    for (int i = 0; i <= `SEQ_BITS; i = i + 1) begin
+      for (int j = 0; j <= `SEQ_BITS; j = j + 1) begin
+        wishbone_addr_i = {2'b11, i[`SEQ_BITS+1:0], j[`SEQ_BITS:0]}; // Address of matrix C
+        wishbone_we_i = 1'b0;        // Read operation
+        #10;                         // Wait for a few clock cycles
+        //wishbone_ack = 1'b0;         // Deassert the acknowledgement signal
+      end
+    end
     
     #100;  // Wait for a few clock cycles after the test case
     $finish;  // End the simulation

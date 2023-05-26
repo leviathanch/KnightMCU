@@ -1,9 +1,10 @@
-\documentclass[a4paper,11pt]{book}
+\documentclass[a4paper,11pt]{article}
 \usepackage{tikz}
 \usetikzlibrary{positioning,fit,calc} % used for the efficient working of the positioning system  
 \tikzset{block/.style={draw, thick, text width=2cm, minimum height=1.5cm, align=center},   
 line/.style={-latex}
 }
+\usetikzlibrary{matrix}
 
 \begin{document}
 \input{intro.tex}
@@ -11,4 +12,6 @@ line/.style={-latex}
 \input{toplevel.tex}
 \pagebreak
 \input{kicop_toplevel.tex}
+\pagebreak
+\input{mmul.tex}
 \end{document}

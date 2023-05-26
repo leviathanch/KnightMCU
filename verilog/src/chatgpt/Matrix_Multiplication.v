@@ -39,6 +39,12 @@ module Matrix_Multiplication (
   But that won't work in Verilog, because for loops work differently,
   so we've got to implement this for loop as a state machine instead.
   */
+
+  // Turning the thing on
+  always @(posedge enable) begin
+    state <= IDLE;
+  end
+
   // Assign initial state
   always @(posedge clk) begin
     if (reset) begin
@@ -56,28 +62,27 @@ module Matrix_Multiplication (
         end
       end
     end
-    else begin
+    else if (enable) begin
       case (state)
-        IDLE:
-          if (enable) begin
-            // Reset indices and result register
-            state <= LOOP1;
-            i <= 0;
-            j <= 0;
-            k <= 0;
-            done <= 0;
-            /* Operation registers:
-               0: operation
-               1: width A
-               2: height A
-               3: width B
-               4: height B
-               5: done writing values, go!
-            */
-            N <= operation_reg[1]; // width A
-            M <= operation_reg[2]; // height A
-            P <= operation_reg[4]; // height B
-          end
+        IDLE: begin
+          // Reset indices and result register
+          state <= LOOP1;
+          i <= 0;
+          j <= 0;
+          k <= 0;
+          done <= 0;
+          /* Operation registers:
+             0: operation
+             1: width A
+             2: height A
+             3: width B
+             4: height B
+             5: done writing values, go!
+          */
+          N <= operation_reg[1]; // width A
+          M <= operation_reg[2]; // height A
+          P <= operation_reg[4]; // height B
+        end
         LOOP1: begin // for (int i = 0; i < N; i++) {
           if (i < N) begin
             state <= LOOP2;
@@ -111,7 +116,6 @@ module Matrix_Multiplication (
         end
         FSM_DONE: begin
           done <= 1;
-          state <= IDLE;
         end
       endcase
     end

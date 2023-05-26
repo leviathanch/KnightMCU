@@ -90,11 +90,6 @@ module AI_Accelerator_Top (
             if ( matrix_mult_done ) begin
               wishbone_ack <= 1'b1;
               wishbone_data_o <= matrix_mult_result[wishbone_addr_i[29:`SEQ_BITS+1]][wishbone_addr_i[`SEQ_BITS:0]];
-              $display("matrixC_out[%d][%d] = %d",
-                 wishbone_addr_i[29:`SEQ_BITS+1],
-                 wishbone_addr_i[`SEQ_BITS:0],
-                 matrix_mult_result[wishbone_addr_i[29:`SEQ_BITS+1]][wishbone_addr_i[`SEQ_BITS:0]]
-               );
             end
           end
           default: begin
@@ -112,7 +107,6 @@ module AI_Accelerator_Top (
           if( matrix_mult_done ) begin
             if( busy ) begin
               busy <= 1'b0;
-              wishbone_ack <= 1'b1; // Indicate that we're done
               multiplier_enable <= 1'b0; // Enable matrix multiplication module
               operation_reg[5] <= 32'h0000_0000;
             end

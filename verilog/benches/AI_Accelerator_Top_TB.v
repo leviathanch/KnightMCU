@@ -32,7 +32,7 @@ module AI_Accelerator_Top_TB;
   initial begin
     clk = 1;
     repeat (5000000) begin
-      #5 clk = ~clk;
+      #1 clk = ~clk;
     end
   end
   
@@ -48,32 +48,38 @@ module AI_Accelerator_Top_TB;
   // WB access job
   reg [31:0] data;
   reg [31:0] addr;
-  reg direction;
+  integer direction;
+  reg opdone;
   always @(posedge clk) begin
-    if (direction) begin // Write
+    if (direction == 1) begin // Write
+      opdone = 0;
       wishbone_data_i = data;
       wishbone_addr_i = addr;
-      #10;
+      #1;
       wishbone_stb = 1'b1;
       wishbone_we_i = 1'b1;
       @(posedge wishbone_ack);
       wishbone_stb = 1'b0;
       wishbone_we_i = 1'b0;
-      #10;
+      #1;
+      direction = 0;
+      opdone = 1;
     end
-    else begin // Read
+    else if ( direction == 2 ) begin // Read
+      opdone = 0;
       wishbone_we_i = 1'b0;
       wishbone_addr_i = addr;
-      #10;
+      #1;
       wishbone_stb = 1'b1;
       @(posedge wishbone_ack);
-      wishbone_stb = 1'b0;
-      #10;
       data = wishbone_data_o;
-      #10;
+      wishbone_stb = 1'b0;
+      #1;
+      direction = 0;
+      opdone = 1;
     end
   end
-  
+
   // Initialize inputs
   initial begin
     wishbone_addr_i = 0;
@@ -96,58 +102,61 @@ module AI_Accelerator_Top_TB;
        4: height B
        5: done writing values, go! 
     */
-    direction = 1; // Write operation
 
-    #100;                  // Wait for a few clock cycles
-    data = 32'h0000_0001;  // The operation to be executed
+    data = 1;      // The operation to be executed
     addr = 0;
-    #100;                  // Wait for a few clock cycles
-    data = 32'h0000_000f;  // w_A
+    direction = 1; // Write operation
+    @(posedge opdone);
+    data = 15;     // w_A
     addr = 1;
-    #100;                  // Wait for a few clock cycles
-    data = 32'h0000_000f;  // h_A
+    direction = 1; // Write operation
+    @(posedge opdone);
+    data = 15;     // h_A
     addr = 2;
-    #100;                  // Wait for a few clock cycles
-    data = 32'h0000_000f;  // w_B
+    direction = 1; // Write operation
+    @(posedge opdone);
+    data = 15;     // w_B
     addr = 3;
-    #100;                  // Wait for a few clock cycles
-    data = 32'h0000_000f;  // h_B
+    direction = 1; // Write operation
+    @(posedge opdone);
+    data = 15;     // h_B
     addr = 4;
-    #100;                  // Wait for a few clock cycles
+    direction = 1; // Write operation
+    @(posedge opdone);
 
     // Write data to matrix A and matrix B
     for (int i = 0; i <= `SEQ_BITS; i = i + 1) begin
       for (int j = 0; j <= `SEQ_BITS; j = j + 1) begin
         // Write data to matrix A
-        #100;
         addr = {2'b01, i[`SEQ_BITS:0], j[`SEQ_BITS:0]};
-        data = i*j;  // Data to be written
+        data = i;  // Data to be written
+        direction = 1; // Write operation
+        @(posedge opdone);
         // Write data to matrix B
-        #100;
         addr = {2'b10, i[`SEQ_BITS:0], j[`SEQ_BITS:0]};
-        data = i*(j+1)/2;  // Data to be written
+        data = j;  // Data to be written
+        direction = 1; // Write operation
+        @(posedge opdone);
       end
     end
 
-    #100;
-    data = 32'hffffffff;  // OK. Go now
+    #50;
+    data = -1;  // OK. Go now
     addr = 5;
-    #100;
+    direction = 1; // Write operation
+    #50;
 
     // Read data from matrix C
-    direction = 1'b0;        // Read operation
-
-    @(posedge wishbone_ack);     // wait fo ACK
     for (int i = 0; i <= `SEQ_BITS; i = i + 1) begin
       for (int j = 0; j <= `SEQ_BITS; j = j + 1) begin
-        #100;
         addr = {2'b11, i[`SEQ_BITS+1:0], j[`SEQ_BITS:0]}; // Address of matrix C
-        #100;
-        $display("C[%d,%d] = %d", i[`SEQ_BITS+1:0], j[`SEQ_BITS:0], data);
+        direction = 2; // Read operation
+        @(posedge opdone);
+        $display("C[%d,%d] = %x", i[`SEQ_BITS+1:0], j[`SEQ_BITS:0], data);
       end
     end
 
-    #100;  // Wait for a few clock cycles after the test case
+    #200000;  // Wait for a few clock cycles after the test case
     $finish;  // End the simulation
 
   end

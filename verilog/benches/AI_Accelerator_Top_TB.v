@@ -4,9 +4,6 @@ module AI_Accelerator_Top_TB;
   parameter CLK_PERIOD = 10;  // Clock period in ns
   
   // Inputs
-  reg clk;
-  reg reset;
-  reg enable;
   reg wishbone_clk_i;
   reg wishbone_rst_i;
   reg [31:0] wishbone_addr_i;
@@ -15,27 +12,24 @@ module AI_Accelerator_Top_TB;
 
   // Outputs
   wire [31:0] wishbone_data_o;
+  wire wishbone_ack;
   
   // Instantiate the DUT
   AI_Accelerator_Top dut (
-    .clk(clk),
-    .reset(reset),
     .wishbone_clk_i(wishbone_clk_i),
     .wishbone_rst_i(wishbone_rst_i),
     .wishbone_addr_i(wishbone_addr_i),
     .wishbone_we_i(wishbone_we_i),
     .wishbone_data_i(wishbone_data_i),
-    .wishbone_data_o(wishbone_data_o)
+    .wishbone_data_o(wishbone_data_o),
+    .wishbone_ack(wishbone_ack)
   );
   
   // Clock generation
-  always #((CLK_PERIOD / 2)) clk = ~clk;
+  always #((CLK_PERIOD / 2)) wishbone_clk_i = ~wishbone_clk_i;
   
   // Initialize inputs
   initial begin
-    clk = 0;
-    reset = 0;
-    enable = 0;
     wishbone_clk_i = 0;
     wishbone_rst_i = 0;
     wishbone_addr_i = 0;

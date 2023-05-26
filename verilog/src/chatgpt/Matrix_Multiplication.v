@@ -25,6 +25,7 @@ module Matrix_Multiplication (
   localparam LOOP1 = 1;
   localparam LOOP2 = 2;
   localparam LOOP3 = 3;
+  localparam FSM_DONE = 4;
 
   /* In C we would do two loops like this:
   for (int i = 0; i < N; i++) {
@@ -42,7 +43,13 @@ module Matrix_Multiplication (
   always @(posedge clk) begin
     if (reset) begin
       state <= IDLE;
-      done <= 1;
+      M <= 0;
+      N <= 0;
+      P <= 0;
+      i <= 0;
+      j <= 0;
+      k <= 0;
+      done <= 1'b1;
       for (i=0; i<= `SEQ_BITS; i=i+1) begin
         for (j=0; j<= `SEQ_BITS; j=j+1) begin
           matrixC_out[i][j] <= 0;
@@ -76,8 +83,7 @@ module Matrix_Multiplication (
             state <= LOOP2;
           end
           else begin
-            state <= IDLE;
-            done <= 1;
+            state <= FSM_DONE;
           end
         end
         LOOP2: begin // for (int j = 0; j < P; j++) {
@@ -92,6 +98,7 @@ module Matrix_Multiplication (
         end
         LOOP3: begin // for (int k = 0; k < M; k++) {
           matrixC_out[i][j] <= matrixC_out[i][j] + matrixA_in[i][k] * matrixB_in[k][j];
+          //$display("matrixC_out[%d][%d] = %d", i, j, matrixC_out[i][j]);
           if (k < M - 1) begin
             state <= LOOP3;
             k <= k + 1;
@@ -101,6 +108,10 @@ module Matrix_Multiplication (
             j <= j + 1;
             k <= 0;
           end
+        end
+        FSM_DONE: begin
+          done <= 1;
+          state <= IDLE;
         end
       endcase
     end

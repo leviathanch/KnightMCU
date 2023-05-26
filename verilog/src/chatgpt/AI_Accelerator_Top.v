@@ -45,47 +45,89 @@ module AI_Accelerator_Top (
   // State
   reg multiplier_enable;
   reg busy;
+  reg started;
 
-  
   always @(posedge wishbone_clk_i) begin
+    //$display("%x, %x", operation_reg[5], operation_reg[0]);
     if ( wishbone_rst_i ) begin
       busy <= 1'b0;
+      started <= 1'b0;
       multiplier_enable <= 1'b0; // Disable other modules by default
+      wishbone_data_o <= 32'b0;
+      wishbone_ack <= 1'b0;
+      for (int j=0; j< `SEQ_BITS; j++) begin
+        for (int i=0; i< `SEQ_BITS; i++) begin
+          matrixC_out[j][i] <= 0;
+        end
+      end
+      for (int i=0; i< 5; i++) begin
+        operation_reg[i] <= 0;
+      end
+    end
+    else if ( wishbone_ack ) begin
+      wishbone_ack <= 1'b0;
     end
     else if ( wishbone_we_i && wishbone_stb && !busy ) begin
       // Connecting Wishbone Interface to Registers
       wishbone_ack <= 1'b1;
-      if (wishbone_addr_i[31:30] == 4'b00) // Operation register address
-        operation_reg[wishbone_addr_i[10:0]] <= wishbone_data_i;
-      else if (wishbone_addr_i[31:30] == 4'b01) // Matrix A address register address
+      //$display("addr %d, data %d", wishbone_addr_i[31:30], wishbone_data_i);
+      if (wishbone_addr_i[31:30] == 2'b00) begin// Operation register address
+        operation_reg[wishbone_addr_i[3:0]] <= wishbone_data_i;
+      end
+      else if (wishbone_addr_i[31:30] == 2'b01) begin // Matrix A address register address
         matrixA_in[wishbone_addr_i[29:`SEQ_BITS+1]][wishbone_addr_i[`SEQ_BITS:0]] <= wishbone_data_i;
-      else if (wishbone_addr_i[31:30] == 4'b10) // Matrix B address register address
+      end
+      else if (wishbone_addr_i[31:30] == 2'b10) begin// Matrix B address register address
         matrixB_in[wishbone_addr_i[29:`SEQ_BITS+1]][wishbone_addr_i[`SEQ_BITS:0]] <= wishbone_data_i;
+      end
     end
-    if (!wishbone_we_i && operation_reg[5] == 31'h0xff) begin
+    else if ( !wishbone_we_i && wishbone_stb && !busy && operation_reg[5] == 32'h0000_0000 ) begin
+      // Connecting Wishbone Interface to Registers
+      if( !busy ) begin
+        case (operation_reg[0])
+          // Enable corresponding module based on operation value in operation register
+          32'h0000_0001: begin // matrix multiplication
+            if ( matrix_mult_done ) begin
+              wishbone_ack <= 1'b1;
+              wishbone_data_o <= matrix_mult_result[wishbone_addr_i[29:`SEQ_BITS+1]][wishbone_addr_i[`SEQ_BITS:0]];
+              $display("matrixC_out[%d][%d] = %d",
+                 wishbone_addr_i[29:`SEQ_BITS+1],
+                 wishbone_addr_i[`SEQ_BITS:0],
+                 matrix_mult_result[wishbone_addr_i[29:`SEQ_BITS+1]][wishbone_addr_i[`SEQ_BITS:0]]
+               );
+            end
+          end
+          default: begin
+            wishbone_ack <= 1'b1;
+            wishbone_data_o <= 0;
+          end
+        endcase
+      end
+    end
+    else if (!wishbone_we_i && wishbone_stb && operation_reg[5] == 32'hFFFF_FFFF && !started ) begin
       // Connecting Wishbone Interface to Controller
       case (operation_reg[0])
         // Enable corresponding module based on operation value in operation register
-        2'b01: begin // matrix multiplication
+        32'h0000_0001: begin // matrix multiplication
           if( matrix_mult_done ) begin
-            if( !busy ) begin
-              wishbone_ack <= 1'b0;
-              busy <= 1'b1;
-              multiplier_enable <= 1'b1; // Enable matrix multiplication module
+            if( busy ) begin
+              busy <= 1'b0;
+              wishbone_ack <= 1'b1; // Indicate that we're done
+              multiplier_enable <= 1'b0; // Enable matrix multiplication module
+              operation_reg[5] <= 32'h0000_0000;
             end
             else begin
-              busy <= 1'b0; // indicate that we started operation
-              multiplier_enable <= 1'b0; // Enable matrix multiplication module
-              wishbone_ack <= 1'b0;
-              for (int j=0; j< `SEQ_BITS; j++) begin
-                for (int i=0; i< `SEQ_BITS; j++) begin
-                  matrixC_out[j][i] <= matrix_mult_result[j][i]; // store the result
-                end
-              end
+              wishbone_ack <= 1'b0; // indicate that we started operation
+              busy <= 1'b1; // indicate that we started operation
+              multiplier_enable <= 1'b1; // Enable matrix multiplication module
+              started <= 1'b1; // fix timing issue
             end
           end
         end
       endcase
+    end
+    else if (started) begin
+      started <= 1'b0;
     end
   end
   

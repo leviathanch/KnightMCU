@@ -12,7 +12,7 @@ module AI_Accelerator_Top_TB;
   reg [31:0] wishbone_addr_i;
   reg wishbone_we_i;
   reg [31:0] wishbone_data_i;
-  
+
   // Outputs
   wire [31:0] wishbone_data_o;
   
@@ -20,7 +20,6 @@ module AI_Accelerator_Top_TB;
   AI_Accelerator_Top dut (
     .clk(clk),
     .reset(reset),
-    .enable(enable),
     .wishbone_clk_i(wishbone_clk_i),
     .wishbone_rst_i(wishbone_rst_i),
     .wishbone_addr_i(wishbone_addr_i),

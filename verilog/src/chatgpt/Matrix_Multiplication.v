@@ -56,6 +56,11 @@ module Matrix_Multiplication (
       j <= 0;
       k <= 0;
       done <= 1'b1;
+      for (int i = 0; i < `MEM_SIZE; i = i + 1) begin
+        for (int j = 0; j < `MEM_SIZE; j = j + 1) begin
+          matrixC_out[i][j] <= 0;  // Initialize the element in the result matrix
+        end
+      end
     end
     else if (enable) begin
       case (state)
@@ -77,10 +82,14 @@ module Matrix_Multiplication (
           N <= operation_reg[1]; // width A
           M <= operation_reg[2]; // height A
           P <= operation_reg[4]; // height B
+          for (int i = 0; i < `MEM_SIZE; i = i + 1) begin
+            for (int j = 0; j < `MEM_SIZE; j = j + 1) begin
+              matrixC_out[i][j] <= 0;  // Initialize the element in the result matrix
+            end
+          end
         end
         LOOP1: begin // for (int i = 0; i < N; i++) {
           if (i < N) begin
-            matrixC_out[i][j] <= 0;  // Initialize the element in the result matrix
             state <= LOOP2;
           end
           else begin
@@ -99,7 +108,7 @@ module Matrix_Multiplication (
         end
         LOOP3: begin // for (int k = 0; k < M; k++) {
           matrixC_out[i][j] <= matrixC_out[i][j] + matrixA_in[i][k] * matrixB_in[k][j];
-          //$display("matrixA_in[%d][%d] = %d", i, j, matrixA_in[i][j]);
+          //$display("matrixC_out[%d][%d] = %d", i, j, $signed(matrixC_out[i][j]));
           if (k < M - 1) begin
             state <= LOOP3;
             k <= k + 1;

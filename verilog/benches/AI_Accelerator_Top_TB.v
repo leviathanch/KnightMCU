@@ -1,5 +1,22 @@
 `include "verilog/src/mine/constants.v"
 
+`define TEST_MATRIX_DIM 2
+/*
+DIM==2:
+
+-3  -15  x  9  -15 =     3   120
+-6   7      -2 -5      -68    55
+
+-3*9 + -15*-2 = -27 + 30 = 3
+-3*-15 + -15*-5 = 45 + 75 = 120
+-6*9 + 7*-2 = -54 + -14 = -68
+-6*-15  + 7*-5 = 90 + -35 = 55
+
+Correct!
+*/
+
+//`define TEST_MATRIX_DIM 16
+
 module AI_Accelerator_Top_TB;
 
 `include "verilog/benches/test_data/matrix_A.v"
@@ -109,30 +126,30 @@ module AI_Accelerator_Top_TB;
 
     #1000;
 
-    data = 1;      // The operation to be executed
+    data = 1;               // The operation to be executed
     addr = 0;
-    direction = 1; // Write operation
+    direction = 1;          // Write operation
     @(posedge opdone);
-    data = 16;     // w_A
+    data = `TEST_MATRIX_DIM;// w_A
     addr = 1;
-    direction = 1; // Write operation
+    direction = 1;          // Write operation
     @(posedge opdone);
-    data = 16;     // h_A
+    data = `TEST_MATRIX_DIM;// h_A
     addr = 2;
-    direction = 1; // Write operation
+    direction = 1;          // Write operation
     @(posedge opdone);
-    data = 16;     // w_B
+    data = `TEST_MATRIX_DIM;// w_B
     addr = 3;
-    direction = 1; // Write operation
+    direction = 1;          // Write operation
     @(posedge opdone);
-    data = 16;     // h_B
+    data = `TEST_MATRIX_DIM;// h_B
     addr = 4;
-    direction = 1; // Write operation
+    direction = 1;          // Write operation
     @(posedge opdone);
 
     // Write data to matrix A and matrix B
-    for (int i = 0; i < 16; i = i + 1) begin
-      for (int j = 0; j < 16; j = j + 1) begin
+    for (int i = 0; i < `TEST_MATRIX_DIM; i = i + 1) begin
+      for (int j = 0; j < `TEST_MATRIX_DIM; j = j + 1) begin
         // Write data to matrix A
         addr = {2'b01, i[`SEQ_BITS:0], j[`SEQ_BITS:0]};
         data = matrixA[i][j];
@@ -150,18 +167,20 @@ module AI_Accelerator_Top_TB;
     end
 
     // Read data from matrix A and matrix B
-    for (int i = 0; i < 16; i = i + 1) begin
-      for (int j = 0; j < 16; j = j + 1) begin
+    for (int i = 0; i < `TEST_MATRIX_DIM; i = i + 1) begin
+      for (int j = 0; j < `TEST_MATRIX_DIM; j = j + 1) begin
         // Write data to matrix A
         addr = {2'b01, i[`SEQ_BITS:0], j[`SEQ_BITS:0]};
         direction = 2; // Write operation
         @(posedge opdone);
+        $display("matrixA[%d,%d] = %d", i, j, $signed(data));
         //$display("address: %x, data: %d", addr, $signed(data));
 
         // Write data to matrix B
         addr = {2'b10, i[`SEQ_BITS:0], j[`SEQ_BITS:0]};
         direction = 2; // Write operation
         @(posedge opdone);
+        $display("matrixB[%d,%d] = %d", i, j, $signed(data));
         //$display("Read address: %b, data: %d", addr, $signed(data));
       end
     end
@@ -172,16 +191,16 @@ module AI_Accelerator_Top_TB;
     @(posedge opdone);
 
     // Read data from matrix C
-    for (int i = 0; i < 16; i = i + 1) begin
-      for (int j = 0; j < 16; j = j + 1) begin
-        addr = {2'b11, i[`SEQ_BITS+1:0], j[`SEQ_BITS:0]}; // Address of matrix C
+    for (int i = 0; i < `TEST_MATRIX_DIM; i = i + 1) begin
+      for (int j = 0; j < `TEST_MATRIX_DIM; j = j + 1) begin
+        addr = {2'b11, i[`SEQ_BITS:0], j[`SEQ_BITS:0]}; // Address of matrix C
         direction = 2; // Read operation
         @(posedge opdone);
         $display("matrixC[%d,%d] = %d", i, j, $signed(data));
       end
     end
 
-    #200000;  // Wait for a few clock cycles after the test case
+    #1000;  // Wait for a few clock cycles after the test case
     $finish;  // End the simulation
 
   end

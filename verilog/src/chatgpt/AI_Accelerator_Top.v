@@ -30,9 +30,9 @@ module AI_Accelerator_Top (
     .reset(wb_rst_i),
     .enable(multiplier_enable),
     .operation_reg(operation_reg),
-    //.matrixA_in(matrixA_in),
-    //.matrixB_in(matrixB_in),
-    //.matrixC_out(matrix_mult_result),
+    .matrixA_in(matrixA_in),
+    .matrixB_in(matrixB_in),
+    .matrixC_out(matrix_mult_result),
     .done(matrix_mult_done)
   );
   
@@ -83,7 +83,7 @@ module AI_Accelerator_Top (
         matrixB_in[mi][mj] <= wb_data_i;
       end
     end
-    else if ( !wb_we_i && wb_stb && !busy && operation_reg[5] != 32'hFFFF_FFFF ) begin
+    else if ( !wb_we_i && wb_stb && !busy && operation_reg[5] != 32'hFFFF_FFFF ) begin // Read operation
       if (prefix == 2'b00) begin// Operation register address
         wb_ack <= 1'b1;
         wb_data_o <= operation_reg[wb_addr_i[3:0]];

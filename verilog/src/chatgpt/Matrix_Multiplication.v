@@ -108,7 +108,6 @@ module Matrix_Multiplication (
         end
         LOOP3: begin // for (int k = 0; k < M; k++) {
           matrixC_out[i][j] <= matrixC_out[i][j] + matrixA_in[i][k] * matrixB_in[k][j];
-          //$display("matrixC_out[%d][%d] = %d", i, j, $signed(matrixC_out[i][j]));
           if (k < M - 1) begin
             state <= LOOP3;
             k <= k + 1;
@@ -125,5 +124,4 @@ module Matrix_Multiplication (
       endcase
     end
   end
-
 endmodule

@@ -102,12 +102,14 @@ module Matrix_Multiplication (
           end
           else begin
             state <= LOOP1;
-            i <= i + 1;
+            i <= i + `PARALLEL_MULT_JOBS; // Parallelism
             j <= 0;
           end
         end
         LOOP3: begin // for (int k = 0; k < M; k++) {
-          matrixC_out[i][j] <= matrixC_out[i][j] + matrixA_in[i][k] * matrixB_in[k][j];
+          for(int g = 0; g < `PARALLEL_MULT_JOBS; g = g +1 ) begin
+            matrixC_out[i+g][j] <= matrixC_out[i+g][j] + matrixA_in[i+g][k] * matrixB_in[k][j]; // Parallelism
+          end
           if (k < M - 1) begin
             state <= LOOP3;
             k <= k + 1;

@@ -1,13 +1,13 @@
-`define SEQ_BITS 14
+`include "verilog/src/mine/constants.v"
 
 module Matrix_Multiplication (
   input wire         clk,
   input wire         reset,
   input wire         enable,
-  input wire [31:0]  operation_reg [6],
-  input wire [31:0]  matrixA_in [0:`SEQ_BITS][0:`SEQ_BITS],
-  input wire [31:0]  matrixB_in [0:`SEQ_BITS][0:`SEQ_BITS],
-  output reg [31:0]  matrixC_out [0:`SEQ_BITS][0:`SEQ_BITS],
+  input wire [31:0]  operation_reg [6:0],
+  input wire [31:0]  matrixA_in [`MEM_SIZE:0][`MEM_SIZE:0],
+  input wire [31:0]  matrixB_in [`MEM_SIZE:0][`MEM_SIZE:0],
+  output reg [31:0]  matrixC_out [`MEM_SIZE:0][`MEM_SIZE:0],
   output reg         done
 );
 
@@ -56,11 +56,6 @@ module Matrix_Multiplication (
       j <= 0;
       k <= 0;
       done <= 1'b1;
-      for (i=0; i<= `SEQ_BITS; i=i+1) begin
-        for (j=0; j<= `SEQ_BITS; j=j+1) begin
-          matrixC_out[i][j] <= 0;
-        end
-      end
     end
     else if (enable) begin
       case (state)
@@ -85,6 +80,7 @@ module Matrix_Multiplication (
         end
         LOOP1: begin // for (int i = 0; i < N; i++) {
           if (i < N) begin
+            matrixC_out[i][j] <= 0;  // Initialize the element in the result matrix
             state <= LOOP2;
           end
           else begin
@@ -103,7 +99,7 @@ module Matrix_Multiplication (
         end
         LOOP3: begin // for (int k = 0; k < M; k++) {
           matrixC_out[i][j] <= matrixC_out[i][j] + matrixA_in[i][k] * matrixB_in[k][j];
-          //$display("matrixC_out[%d][%d] = %d", i, j, matrixC_out[i][j]);
+          //$display("matrixA_in[%d][%d] = %d", i, j, matrixA_in[i][j]);
           if (k < M - 1) begin
             state <= LOOP3;
             k <= k + 1;

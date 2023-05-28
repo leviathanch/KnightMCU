@@ -1,30 +1,33 @@
-`define SEQ_BITS 14
+`include "verilog/src/mine/constants.v"
 
 module AI_Accelerator_Top_TB;
+
+`include "verilog/benches/test_data/matrix_A.v"
+`include "verilog/benches/test_data/matrix_B.v"
 
   // Parameters
   parameter CLK_PERIOD = 1;  // Clock period in ns
   
   // Inputs
-  reg [31:0] wishbone_addr_i;
-  reg wishbone_we_i;
-  reg [31:0] wishbone_data_i;
-  reg wishbone_stb;
+  reg [31:0] wb_addr_i;
+  reg wb_we_i;
+  reg [31:0] wb_data_i;
+  reg wb_stb;
 
   // Outputs
-  wire [31:0] wishbone_data_o;
-  wire wishbone_ack;
+  wire [31:0] wb_data_o;
+  wire wb_ack;
   
   // Instantiate the DUT
   AI_Accelerator_Top dut (
-    .wishbone_clk_i(clk),
-    .wishbone_rst_i(reset),
-    .wishbone_addr_i(wishbone_addr_i),
-    .wishbone_we_i(wishbone_we_i),
-    .wishbone_data_i(wishbone_data_i),
-    .wishbone_data_o(wishbone_data_o),
-    .wishbone_ack(wishbone_ack),
-    .wishbone_stb(wishbone_stb)
+    .wb_clk_i(clk),
+    .wb_rst_i(reset),
+    .wb_addr_i(wb_addr_i),
+    .wb_we_i(wb_we_i),
+    .wb_data_i(wb_data_i),
+    .wb_data_o(wb_data_o),
+    .wb_ack(wb_ack),
+    .wb_stb(wb_stb)
   );
 
   // Clock generation
@@ -53,27 +56,27 @@ module AI_Accelerator_Top_TB;
   always @(posedge clk) begin
     if (direction == 1) begin // Write
       opdone = 0;
-      wishbone_data_i = data;
-      wishbone_addr_i = addr;
+      wb_data_i = data;
+      wb_addr_i = addr;
       #1;
-      wishbone_stb = 1'b1;
-      wishbone_we_i = 1'b1;
-      @(posedge wishbone_ack);
-      wishbone_stb = 1'b0;
-      wishbone_we_i = 1'b0;
+      wb_stb = 1'b1;
+      wb_we_i = 1'b1;
+      @(posedge wb_ack);
+      wb_stb = 1'b0;
+      wb_we_i = 1'b0;
       #1;
       direction = 0;
       opdone = 1;
     end
     else if ( direction == 2 ) begin // Read
       opdone = 0;
-      wishbone_we_i = 1'b0;
-      wishbone_addr_i = addr;
+      wb_we_i = 1'b0;
+      wb_addr_i = addr;
       #1;
-      wishbone_stb = 1'b1;
-      @(posedge wishbone_ack);
-      data = wishbone_data_o;
-      wishbone_stb = 1'b0;
+      wb_stb = 1'b1;
+      @(posedge wb_ack);
+      data = wb_data_o;
+      wb_stb = 1'b0;
       #1;
       direction = 0;
       opdone = 1;
@@ -82,10 +85,11 @@ module AI_Accelerator_Top_TB;
 
   // Initialize inputs
   initial begin
-    wishbone_addr_i = 0;
-    wishbone_we_i = 0;
-    wishbone_data_i = 0;
-    wishbone_stb <= 1'b0;
+
+    wb_addr_i = 0;
+    wb_we_i = 0;
+    wb_data_i = 0;
+    wb_stb <= 1'b0;
     data = 0;
     addr = 0;
     direction = 0;
@@ -103,56 +107,77 @@ module AI_Accelerator_Top_TB;
        5: done writing values, go! 
     */
 
+    #1000;
+
     data = 1;      // The operation to be executed
     addr = 0;
     direction = 1; // Write operation
     @(posedge opdone);
-    data = 15;     // w_A
+    data = 16;     // w_A
     addr = 1;
     direction = 1; // Write operation
     @(posedge opdone);
-    data = 15;     // h_A
+    data = 16;     // h_A
     addr = 2;
     direction = 1; // Write operation
     @(posedge opdone);
-    data = 15;     // w_B
+    data = 16;     // w_B
     addr = 3;
     direction = 1; // Write operation
     @(posedge opdone);
-    data = 15;     // h_B
+    data = 16;     // h_B
     addr = 4;
     direction = 1; // Write operation
     @(posedge opdone);
 
     // Write data to matrix A and matrix B
-    for (int i = 0; i <= `SEQ_BITS; i = i + 1) begin
-      for (int j = 0; j <= `SEQ_BITS; j = j + 1) begin
+    for (int i = 0; i < 16; i = i + 1) begin
+      for (int j = 0; j < 16; j = j + 1) begin
         // Write data to matrix A
         addr = {2'b01, i[`SEQ_BITS:0], j[`SEQ_BITS:0]};
-        data = i;  // Data to be written
+        data = matrixA[i][j];
         direction = 1; // Write operation
         @(posedge opdone);
+        //$display("Write address: %x, data: %d", addr, $signed(data));
+
         // Write data to matrix B
         addr = {2'b10, i[`SEQ_BITS:0], j[`SEQ_BITS:0]};
-        data = j;  // Data to be written
+        data = matrixB[i][j];
         direction = 1; // Write operation
         @(posedge opdone);
+        //$display("Write address: %b, data: %d", addr, $signed(data));
       end
     end
 
-    #50;
+    // Read data from matrix A and matrix B
+    for (int i = 0; i < 16; i = i + 1) begin
+      for (int j = 0; j < 16; j = j + 1) begin
+        // Write data to matrix A
+        addr = {2'b01, i[`SEQ_BITS:0], j[`SEQ_BITS:0]};
+        direction = 2; // Write operation
+        @(posedge opdone);
+        //$display("address: %x, data: %d", addr, $signed(data));
+
+        // Write data to matrix B
+        addr = {2'b10, i[`SEQ_BITS:0], j[`SEQ_BITS:0]};
+        direction = 2; // Write operation
+        @(posedge opdone);
+        //$display("Read address: %b, data: %d", addr, $signed(data));
+      end
+    end
+
     data = -1;  // OK. Go now
     addr = 5;
     direction = 1; // Write operation
-    #50;
+    @(posedge opdone);
 
     // Read data from matrix C
-    for (int i = 0; i <= `SEQ_BITS; i = i + 1) begin
-      for (int j = 0; j <= `SEQ_BITS; j = j + 1) begin
+    for (int i = 0; i < 16; i = i + 1) begin
+      for (int j = 0; j < 16; j = j + 1) begin
         addr = {2'b11, i[`SEQ_BITS+1:0], j[`SEQ_BITS:0]}; // Address of matrix C
         direction = 2; // Read operation
         @(posedge opdone);
-        $display("C[%d,%d] = %x", i[`SEQ_BITS+1:0], j[`SEQ_BITS:0], data);
+        $display("matrixC[%d,%d] = %d", i, j, $signed(data));
       end
     end
 

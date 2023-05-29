@@ -108,15 +108,24 @@ module AI_Accelerator_Top (
     else if ( !wb_we_i && wb_stb && !busy && operation_reg[5] != 32'hFFFF_FFFF ) begin // Read operation
       if (prefix == 2'b00) begin// Operation register address
         wb_ack <= 1'b1;
-        wb_data_o <= operation_reg[wb_addr_i[3:0]];
+        if (wb_addr_i[2:0]<7)
+          wb_data_o <= operation_reg[wb_addr_i[2:0]];
+        else
+          wb_data_o <= 0;
       end
       else if (prefix == 2'b01) begin // Matrix A address register address
         wb_ack <= 1'b1;
-        wb_data_o <= matrixA_in[mi][mj];
+        if (mi<`MEM_SIZE && mj<`MEM_SIZE)
+          wb_data_o <= matrixA_in[mi][mj];
+        else
+          wb_data_o <= 0;
       end
       else if (prefix == 2'b10) begin// Matrix B address register address
         wb_ack <= 1'b1;
-        wb_data_o <= matrixB_in[mi][mj];
+        if (mi<`MEM_SIZE && mj<`MEM_SIZE)
+          wb_data_o <= matrixB_in[mi][mj];
+        else
+          wb_data_o <= 0;
       end
       else if (prefix == 2'b11) begin// Matrix C address register address
         case (operation_reg[0])
@@ -124,7 +133,10 @@ module AI_Accelerator_Top (
           32'h0000_0001: begin // matrix multiplication
             if ( matrix_mult_done ) begin
               wb_ack <= 1'b1;
-              wb_data_o <= matrix_mult_result[mi][mj];
+              if (mi<`MEM_SIZE && mj<`MEM_SIZE)
+                wb_data_o <= matrix_mult_result[mi][mj];
+              else
+                wb_data_o <= 0;
             end
           end
           default: begin

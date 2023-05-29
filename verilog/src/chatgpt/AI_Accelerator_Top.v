@@ -4,7 +4,7 @@ module AI_Accelerator_Top (
   input wire [31:0]  wb_addr_i,
   input wire         wb_we_i,
   input wire [31:0]  wb_data_i,
-  input wire         wb_stb, // the strobe signal
+  input wire [3:0]   wb_stb, // the strobe signal
   output reg         wb_ack, // the readyness signal
   output reg [31:0]  wb_data_o
 );

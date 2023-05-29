@@ -1,5 +1,3 @@
-`include "verilog/src/mine/constants.v"
-
 `define TEST_MATRIX_DIM 2
 /*
 DIM==2:

@@ -1,5 +1,3 @@
-`include "verilog/src/mine/constants.v"
-
 module Matrix_Multiplication (
   input wire         clk,
   input wire         reset,

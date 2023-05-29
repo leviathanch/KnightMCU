@@ -1,5 +1,3 @@
-`include "verilog/src/mine/constants.v"
-
 module AI_Accelerator_Top (
   input wire         wb_clk_i,
   input wire         wb_rst_i,

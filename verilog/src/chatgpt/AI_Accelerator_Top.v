@@ -8,46 +8,64 @@ module AI_Accelerator_Top (
   output reg         wb_ack, // the readyness signal
   output reg [31:0]  wb_data_o
 );
-
-  // Wires for simplifying stuff
-  wire [1:0] prefix;
-  wire [14:0] mi;
-  wire [14:0] mj;
-
-  // Internal registers to hold matrix values
-  reg [31:0] matrixA_in [`MEM_SIZE:0][`MEM_SIZE:0];
-  reg [31:0] matrixB_in [`MEM_SIZE:0][`MEM_SIZE:0];
-  
-  // Matrix multiplication result wire
-  wire [31:0] matrix_mult_result [`MEM_SIZE:0][`MEM_SIZE:0];
-  wire matrix_mult_done;
-  
-  // Instantiating modules
-  Matrix_Multiplication matrix_mult (
-    .clk(wb_clk_i),
-    .reset(wb_rst_i),
-    .enable(multiplier_enable),
-    .operation_reg(operation_reg),
-    .matrixA_in(matrixA_in),
-    .matrixB_in(matrixB_in),
-    .matrixC_out(matrix_mult_result),
-    .done(matrix_mult_done)
-  );
-  
   /* Operation registers:
      0: operation
      1: width A
      2: height A
      3: width B
      4: height B
-     5: done writing values, go! 
+     5: done writing values, go!
   */
   reg [31:0] operation_reg [6:0];
+  wire [6*32-1:0] operation_reg_port;
+
+  // Wires for simplifying stuff
+  wire [1:0] prefix;
+  wire [14:0] mi;
+  wire [14:0] mj;
+
+  // making iverilog stop complain
+  wire [32*`MEM_SIZE*`MEM_SIZE-1:0] matrixA_port;
+  wire [32*`MEM_SIZE*`MEM_SIZE-1:0] matrixB_port;
+
+  // registers holding values
+  reg [31:0] matrixA_in [`MEM_SIZE:0][`MEM_SIZE:0];
+  reg [31:0] matrixB_in [`MEM_SIZE:0][`MEM_SIZE:0];
+
+  // Matrix multiplication result wire
+  wire [31:0] matrix_mult_result [`MEM_SIZE:0][`MEM_SIZE:0];
+  wire [32*`MEM_SIZE*`MEM_SIZE-1:0] matrix_mult_result_port;
+  wire matrix_mult_done;
+
+  // wiring of registers
+  for (genvar i = 0; i < `MEM_SIZE; i = i + 1) begin
+    for (genvar j = 0; j < `MEM_SIZE; j = j + 1) begin
+      assign matrixA_port[((i*`MEM_SIZE)+j)*32+31:((i*`MEM_SIZE)+j)*32] = matrixA_in[i][j];
+      assign matrixB_port[((i*`MEM_SIZE)+j)*32+31:((i*`MEM_SIZE)+j)*32] = matrixB_in[i][j];
+      assign matrix_mult_result[i][j] = matrix_mult_result_port[((i*`MEM_SIZE)+j)*32+31:((i*`MEM_SIZE)+j)*32];
+    end
+  end
+  for (genvar i = 0; i < 6; i = i + 1) begin
+    assign operation_reg_port[i*32+31:i*32] = operation_reg[i];
+  end
+  
+  // Instantiating modules
+  Matrix_Multiplication matrix_mult (
+    .clk(wb_clk_i),
+    .reset(wb_rst_i),
+    .enable(multiplier_enable),
+    .operation_reg_port(operation_reg_port),
+    .matrixA_in_port(matrixA_port),
+    .matrixB_in_port(matrixB_port),
+    .matrixC_out_port(matrix_mult_result_port),
+    .done(matrix_mult_done)
+  );
 
   // State
   reg multiplier_enable;
   reg busy;
   reg started;
+  wire strobe;
   
   always @(posedge wb_clk_i) begin
     //$display("%x, %x", operation_reg[5], operation_reg[0]);
@@ -57,8 +75,14 @@ module AI_Accelerator_Top (
       multiplier_enable <= 1'b0; // Disable other modules by default
       wb_data_o <= 32'b0;
       wb_ack <= 1'b0;
-      for (int i=0; i < 6; i++) begin
+      for (integer i=0; i < 6; i++) begin
         operation_reg[i] <= 0;
+      end
+      for (integer i=0; i < `MEM_SIZE; i = i + 1) begin
+        for (integer j = 0; j < `MEM_SIZE; j = j + 1) begin
+          matrixA_in[i][j] <= 0;
+          matrixB_in[i][j] <= 0;
+        end
       end
     end
     else if ( wb_ack ) begin

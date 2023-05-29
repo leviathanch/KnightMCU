@@ -2,12 +2,29 @@ module Matrix_Multiplication (
   input wire         clk,
   input wire         reset,
   input wire         enable,
-  input wire [31:0]  operation_reg [6:0],
-  input wire [31:0]  matrixA_in [`MEM_SIZE:0][`MEM_SIZE:0],
-  input wire [31:0]  matrixB_in [`MEM_SIZE:0][`MEM_SIZE:0],
-  output reg [31:0]  matrixC_out [`MEM_SIZE:0][`MEM_SIZE:0],
+  input wire [32*6-1:0]  operation_reg_port,
+  input wire [32*`MEM_SIZE*`MEM_SIZE-1:0]  matrixA_in_port,
+  input wire [32*`MEM_SIZE*`MEM_SIZE-1:0]  matrixB_in_port,
+  output wire [32*`MEM_SIZE*`MEM_SIZE-1:0]  matrixC_out_port,
   output reg         done
 );
+
+  wire [31:0]  operation_reg [6:0];
+  wire [31:0]  matrixA_in [`MEM_SIZE:0][`MEM_SIZE:0];
+  wire [31:0]  matrixB_in [`MEM_SIZE:0][`MEM_SIZE:0];
+  reg [31:0]  matrixC_out [`MEM_SIZE:0][`MEM_SIZE:0];
+
+  // wiring of registers
+  for (genvar i = 0; i < `MEM_SIZE; i = i + 1) begin
+    for (genvar j = 0; j < `MEM_SIZE; j = j + 1) begin
+      assign matrixA_in[i][j] = matrixA_in_port[((i*`MEM_SIZE)+j)*32+31:((i*`MEM_SIZE)+j)*32];
+      assign matrixB_in[i][j] = matrixB_in_port[((i*`MEM_SIZE)+j)*32+31:((i*`MEM_SIZE)+j)*32];
+      assign matrixC_out_port[((i*`MEM_SIZE)+j)*32+31:((i*`MEM_SIZE)+j)*32] = matrixC_out[i][j];
+    end
+  end
+  for (genvar i = 0; i < 6; i = i + 1) begin
+    assign operation_reg[i] = operation_reg_port[i*32+31:i*32];
+  end
 
   // Internal registers and wires
   reg integer i;
@@ -54,8 +71,8 @@ module Matrix_Multiplication (
       j <= 0;
       k <= 0;
       done <= 1'b1;
-      for (int i = 0; i < `MEM_SIZE; i = i + 1) begin
-        for (int j = 0; j < `MEM_SIZE; j = j + 1) begin
+      for (integer i = 0; i < `MEM_SIZE; i = i + 1) begin
+        for (integer j = 0; j < `MEM_SIZE; j = j + 1) begin
           matrixC_out[i][j] <= 0;  // Initialize the element in the result matrix
         end
       end
@@ -80,8 +97,8 @@ module Matrix_Multiplication (
           N <= operation_reg[1]; // width A
           M <= operation_reg[2]; // height A
           P <= operation_reg[4]; // height B
-          for (int i = 0; i < `MEM_SIZE; i = i + 1) begin
-            for (int j = 0; j < `MEM_SIZE; j = j + 1) begin
+          for (integer i = 0; i < `MEM_SIZE; i = i + 1) begin
+            for (integer j = 0; j < `MEM_SIZE; j = j + 1) begin
               matrixC_out[i][j] <= 0;  // Initialize the element in the result matrix
             end
           end
@@ -105,7 +122,7 @@ module Matrix_Multiplication (
           end
         end
         LOOP3: begin // for (int k = 0; k < M; k++) {
-          for(int g = 0; g < `PARALLEL_MULT_JOBS; g = g +1 ) begin
+          for(integer g = 0; g < `PARALLEL_MULT_JOBS; g = g +1 ) begin
             matrixC_out[i+g][j] <= matrixC_out[i+g][j] + matrixA_in[i+g][k] * matrixB_in[k][j]; // Parallelism
           end
           if (k < M - 1) begin

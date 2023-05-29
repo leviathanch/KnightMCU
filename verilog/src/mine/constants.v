@@ -5,5 +5,5 @@
 //`define MEM_SIZE (1<<10) // max size 1024
 //`define MEM_SIZE (1<<9) // max size 512
 //`define MEM_SIZE (1<<8) // max size 256
-`define MEM_SIZE (1<<6) // max size 32
+`define MEM_SIZE (1<<4) // max size 16
 `define PARALLEL_MULT_JOBS 2

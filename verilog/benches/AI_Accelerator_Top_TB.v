@@ -122,7 +122,7 @@ module AI_Accelerator_Top_TB;
        5: done writing values, go! 
     */
 
-    #1000;
+    #100;
 
     data = 1;               // The operation to be executed
     addr = 0;
@@ -198,7 +198,7 @@ module AI_Accelerator_Top_TB;
       end
     end
 
-    #1000;  // Wait for a few clock cycles after the test case
+    #100;  // Wait for a few clock cycles after the test case
     $finish;  // End the simulation
 
   end

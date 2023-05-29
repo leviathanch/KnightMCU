@@ -1,0 +1,38 @@
+\begin{tikzpicture}[
+  block/.style={draw, minimum width=2cm, minimum height=1.5cm},
+  label/.style={font=\footnotesize},
+  scale=0.25, every node/.style={scale=0.25}
+]
+
+% Input matrices
+\matrix (matrixA) [matrix of math nodes, nodes={block}, label={[label]above:Matrix A}] {
+a_{11} & a_{12} & \dots & a_{1n} \\
+a_{21} & a_{22} & \dots & a_{2n} \\
+\vdots & \vdots & \ddots & \vdots \\
+a_{m1} & a_{m2} & \dots & a_{mn} \\
+};
+
+\matrix (matrixB) [matrix of math nodes, nodes={block}, right=1cm of matrixA, label={[label]above:Matrix B}] {
+b_{11} & b_{12} & \dots & b_{1p} \\
+b_{21} & b_{22} & \dots & b_{2p} \\
+\vdots & \vdots & \ddots & \vdots \\
+b_{n1} & b_{n2} & \dots & b_{np} \\
+};
+
+% Multiply operation
+\node[block, right=1.5cm of matrixB] (multiply) {Multiply};
+
+% Output matrix
+\matrix (matrixC) [matrix of math nodes, nodes={block}, right=1.5cm of multiply, label={[label]above:Matrix C}] {
+c_{11} & c_{12} & \dots & c_{1p} \\
+c_{21} & c_{22} & \dots & c_{2p} \\
+\vdots & \vdots & \ddots & \vdots \\
+c_{m1} & c_{m2} & \dots & c_{mp} \\
+};
+
+% Arrows
+\draw[->] (matrixA) -- node[label, above] {m} (matrixB);
+\draw[->] (matrixB) -- (multiply);
+\draw[->] (multiply) -- (matrixC);
+
+\end{tikzpicture}

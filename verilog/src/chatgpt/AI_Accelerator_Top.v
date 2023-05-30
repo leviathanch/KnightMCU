@@ -1,4 +1,6 @@
-module AI_Accelerator_Top (
+module AI_Accelerator_Top #(
+  parameter ADDR_OFFSET = 32'h3010_0000
+) (
   input wire         wb_clk_i,
   input wire         wb_rst_i,
   input wire [31:0]  wb_addr_i,
@@ -8,56 +10,46 @@ module AI_Accelerator_Top (
   output reg         wb_ack, // the readyness signal
   output reg [31:0]  wb_data_o
 );
-  /* Operation registers:
-     0: operation
+  // Wires for simplifying stuff
+  wire [31:0] translated_address;
+  wire [31:0] translated_result_address;
+
+  /* SRAM:
+     0: operation code to perform
+     // 1..4: dimensional information
      1: width A
      2: height A
      3: width B
      4: height B
+     // shoot and go
      5: done writing values, go!
+     // rest of space is the input data
+     6+*: The matrices
   */
-  reg [31:0] operation_reg [6:0];
-  wire [6*32-1:0] operation_reg_port;
-
-  // Wires for simplifying stuff
-  wire [1:0] prefix;
-  wire [14:0] mi;
-  wire [14:0] mj;
-
-  // making iverilog stop complain
-  wire [32*`MEM_SIZE*`MEM_SIZE-1:0] matrixA_port;
-  wire [32*`MEM_SIZE*`MEM_SIZE-1:0] matrixB_port;
-
-  // registers holding values
-  reg [31:0] matrixA_in [`MEM_SIZE:0][`MEM_SIZE:0];
-  reg [31:0] matrixB_in [`MEM_SIZE:0][`MEM_SIZE:0];
+  reg [31:0] memory_inputs [2*`MEM_SIZE*`MEM_SIZE+5:0];
+  // wiring of registers
+  wire [32*(2*`MEM_SIZE*`MEM_SIZE+5)-1:0] memory_inputs_unpacked;
+  // unpacking
+  for (genvar i = 0; i < 2*`MEM_SIZE*`MEM_SIZE+5; i = i + 1) begin
+      assign memory_inputs_unpacked[(i*32)+31:(i*32)] = memory_inputs[i];
+  end
 
   // Matrix multiplication result wire
-  wire [31:0] matrix_mult_result [`MEM_SIZE:0][`MEM_SIZE:0];
-  wire [32*`MEM_SIZE*`MEM_SIZE-1:0] matrix_mult_result_port;
-  wire matrix_mult_done;
-
-  // wiring of registers
-  for (genvar i = 0; i < `MEM_SIZE; i = i + 1) begin
-    for (genvar j = 0; j < `MEM_SIZE; j = j + 1) begin
-      assign matrixA_port[((i*`MEM_SIZE)+j)*32+31:((i*`MEM_SIZE)+j)*32] = matrixA_in[i][j];
-      assign matrixB_port[((i*`MEM_SIZE)+j)*32+31:((i*`MEM_SIZE)+j)*32] = matrixB_in[i][j];
-      assign matrix_mult_result[i][j] = matrix_mult_result_port[((i*`MEM_SIZE)+j)*32+31:((i*`MEM_SIZE)+j)*32];
-    end
+  wire [32*`MEM_SIZE*`MEM_SIZE-1:0] matrix_mult_result_unpacked;
+  wire matrix_mult_done; // status wire
+  wire [31:0] matrix_mult_result [`MEM_SIZE*`MEM_SIZE:0];
+  // unpacking
+  for (genvar i = 0; i < `MEM_SIZE*`MEM_SIZE; i = i + 1) begin
+      assign matrix_mult_result[i] = matrix_mult_result_unpacked[(i*32)+31:(i*32)];
   end
-  for (genvar i = 0; i < 6; i = i + 1) begin
-    assign operation_reg_port[i*32+31:i*32] = operation_reg[i];
-  end
-  
+ 
   // Instantiating modules
   Matrix_Multiplication matrix_mult (
     .clk(wb_clk_i),
     .reset(wb_rst_i),
     .enable(multiplier_enable),
-    .operation_reg_port(operation_reg_port),
-    .matrixA_in_port(matrixA_port),
-    .matrixB_in_port(matrixB_port),
-    .matrixC_out_port(matrix_mult_result_port),
+    .mem_i(memory_inputs_unpacked),
+    .mem_result_o(matrix_mult_result_unpacked),
     .done(matrix_mult_done)
   );
 
@@ -68,9 +60,8 @@ module AI_Accelerator_Top (
   wire strobe;
   reg last_wb_ack; // the readyness signal
 
-  assign mj = wb_addr_i[`SEQ_BITS:0];
-  assign mi = wb_addr_i[`SEQ_BITS+`SEQ_BITS:`SEQ_BITS+1];
-  assign prefix = wb_addr_i[23:22];
+  assign translated_address = wb_addr_i > ADDR_OFFSET ? ((wb_addr_i-ADDR_OFFSET)/4) : 31'b0;
+  assign translated_result_address = translated_address > `MEM_SIZE*`MEM_SIZE/4 ? translated_address-`MEM_SIZE*`MEM_SIZE/4 : 31'b0;
   
   always @(posedge wb_clk_i) begin
     last_wb_ack <= wb_ack;
@@ -82,14 +73,8 @@ module AI_Accelerator_Top (
       wb_data_o <= 32'b0;
       wb_ack <= 1'b0;
       last_wb_ack <= 1'b0;
-      for (integer i=0; i < 6; i++) begin
-        operation_reg[i] <= 0;
-      end
-      for (integer i=0; i < `MEM_SIZE; i = i + 1) begin
-        for (integer j = 0; j < `MEM_SIZE; j = j + 1) begin
-          matrixA_in[i][j] <= 0;
-          matrixB_in[i][j] <= 0;
-        end
+      for (integer i=0; i < 2*`MEM_SIZE*`MEM_SIZE+6; i = i + 1) begin
+        memory_inputs[i] <= 0;
       end
     end
     else if ( wb_ack ) begin
@@ -98,53 +83,25 @@ module AI_Accelerator_Top (
     else if (started) begin
       started <= 1'b0;
     end
-    else if ( wb_we_i && wb_stb && !last_wb_ack && !busy ) begin // write operation
-      if (prefix == 2'b00) begin// Operation register address
-        wb_ack <= 1'b1;
-        operation_reg[wb_addr_i[3:0]] <= wb_data_i;
-      end
-      else if (prefix == 2'b01) begin // Matrix A address register address
-        wb_ack <= 1'b1;
-        matrixA_in[mi][mj] <= wb_data_i;
-      end
-      else if (prefix == 2'b10) begin// Matrix B address register address
-        wb_ack <= 1'b1;
-        matrixB_in[mi][mj] <= wb_data_i;
-      end
+    else if ( wb_we_i && wb_stb && !last_wb_ack && !busy ) begin // Write operation
+      wb_ack <= 1'b1;
+      if ( translated_address < 2*`MEM_SIZE*`MEM_SIZE+6 )
+        memory_inputs[translated_address] <= wb_data_i;
     end
-    else if ( !wb_we_i && wb_stb && !busy && operation_reg[5] != 32'hFFFF_FFFF ) begin // Read operation
-      if (prefix == 2'b00) begin// Operation register address
-        wb_ack <= 1'b1;
-        if (wb_addr_i[2:0]<7)
-          wb_data_o <= operation_reg[wb_addr_i[2:0]];
-        else
-          wb_data_o <= 0;
+    else if ( !wb_we_i && wb_stb && !busy && memory_inputs[5] != 32'hFFFF_FFFF ) begin // Read operation 
+     // $display("Reading from %x, maxmem %x", translated_address, `MEM_SIZE*`MEM_SIZE);
+      wb_ack <= 1'b1;
+      if ( translated_address < `MEM_SIZE*`MEM_SIZE/4 ) begin
+        wb_data_o <= memory_inputs[translated_address];
       end
-      else if (prefix == 2'b01) begin // Matrix A address register address
-        wb_ack <= 1'b1;
-        if (mi<`MEM_SIZE && mj<`MEM_SIZE)
-          wb_data_o <= matrixA_in[mi][mj];
-        else
-          wb_data_o <= 0;
-      end
-      else if (prefix == 2'b10) begin// Matrix B address register address
-        wb_ack <= 1'b1;
-        if (mi<`MEM_SIZE && mj<`MEM_SIZE)
-          wb_data_o <= matrixB_in[mi][mj];
-        else
-          wb_data_o <= 0;
-      end
-      else if (prefix == 2'b11) begin// Matrix C address register address
-        case (operation_reg[0])
-          // Enable corresponding module based on operation value in operation register
+      else if ( translated_result_address < `MEM_SIZE*`MEM_SIZE ) begin// Matrix C address register address
+        //$display("Reading C");
+        case (memory_inputs[0])
           32'h0000_0001: begin // matrix multiplication
+            //$display("Mul operation");
             if ( matrix_mult_done ) begin
               wb_ack <= 1'b1;
-              $display("%d, %d", mi, mj);
-              if (mi<`MEM_SIZE && mj<`MEM_SIZE)
-                wb_data_o <= matrix_mult_result[mi][mj];
-              else
-                wb_data_o <= 0;
+              wb_data_o <= matrix_mult_result[translated_result_address];
             end
           end
           default: begin
@@ -153,16 +110,19 @@ module AI_Accelerator_Top (
           end
         endcase
       end
+      else begin
+        wb_data_o <= 0;
+      end
     end
-    else if ( !wb_we_i && wb_stb && operation_reg[5] == 32'hFFFF_FFFF && !started ) begin
-      case (operation_reg[0])
+    else if ( !wb_we_i && wb_stb && memory_inputs[5] == 32'hFFFF_FFFF && !started ) begin
+      case (memory_inputs[0])
         // Enable corresponding module based on operation value in operation register
         32'h0000_0001: begin // matrix multiplication
           if( matrix_mult_done ) begin
             if( busy ) begin
               busy <= 1'b0;
               multiplier_enable <= 1'b0; // Enable matrix multiplication module
-              operation_reg[5] <= 32'h0000_0000;
+              memory_inputs[5] <= 32'h0000_0000;
             end
             else begin
               wb_ack <= 1'b0; // indicate that we started operation

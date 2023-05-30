@@ -23,6 +23,10 @@ module AI_Accelerator_Top_TB;
 
   // Parameters
   parameter CLK_PERIOD = 1;  // Clock period in ns
+  parameter CTRL_BASE = 32'h3010_0000;
+  parameter MATRIX_A_BASE = CTRL_BASE + 4*6;
+  parameter MATRIX_B_BASE = MATRIX_A_BASE + 4*`TEST_MATRIX_DIM*`TEST_MATRIX_DIM;
+  parameter MATRIX_C_BASE = CTRL_BASE + `MEM_SIZE*`MEM_SIZE; //+ 6; // + 4*4;
 
   // Inputs
   reg [31:0] wb_addr_i;
@@ -126,23 +130,23 @@ module AI_Accelerator_Top_TB;
     #100;
 
     data = 1;               // The operation to be executed
-    addr = 32'h3100_0000;
+    addr = CTRL_BASE;
     direction = 1;          // Write operation
     @(posedge opdone);
     data = `TEST_MATRIX_DIM;// w_A
-    addr = 32'h3100_0001;
+    addr = CTRL_BASE+1*4;
     direction = 1;          // Write operation
     @(posedge opdone);
     data = `TEST_MATRIX_DIM;// h_A
-    addr = 32'h3100_0002;
+    addr = CTRL_BASE+2*4;
     direction = 1;          // Write operation
     @(posedge opdone);
     data = `TEST_MATRIX_DIM;// w_B
-    addr = 32'h3100_0003;
+    addr = CTRL_BASE+3*4;
     direction = 1;          // Write operation
     @(posedge opdone);
     data = `TEST_MATRIX_DIM;// h_B
-    addr = 32'h3100_0004;
+    addr = CTRL_BASE+4*4;
     direction = 1;          // Write operation
     @(posedge opdone);
 
@@ -150,14 +154,18 @@ module AI_Accelerator_Top_TB;
     for (int i = 0; i < `TEST_MATRIX_DIM; i = i + 1) begin
       for (int j = 0; j < `TEST_MATRIX_DIM; j = j + 1) begin
         // Write data to matrix A
-        addr = {8'h31, 2'b01, i[`SEQ_BITS:0], j[`SEQ_BITS:0]};
+        addr = MATRIX_A_BASE + (i*`TEST_MATRIX_DIM+j)*4;
         data = matrixA[i][j];
         direction = 1; // Write operation
         @(posedge opdone);
         //$display("Write address: %x, data: %d", addr, $signed(data));
+      end
+    end
 
+    for (int i = 0; i < `TEST_MATRIX_DIM; i = i + 1) begin
+      for (int j = 0; j < `TEST_MATRIX_DIM; j = j + 1) begin
         // Write data to matrix B
-        addr = {8'h31, 2'b10, i[`SEQ_BITS:0], j[`SEQ_BITS:0]};
+        addr = MATRIX_B_BASE + (i*`TEST_MATRIX_DIM+j)*4;
         data = matrixB[i][j];
         direction = 1; // Write operation
         @(posedge opdone);
@@ -169,14 +177,18 @@ module AI_Accelerator_Top_TB;
     for (int i = 0; i < `TEST_MATRIX_DIM; i = i + 1) begin
       for (int j = 0; j < `TEST_MATRIX_DIM; j = j + 1) begin
         // Write data to matrix A
-        addr = {8'h31, 2'b01, i[`SEQ_BITS:0], j[`SEQ_BITS:0]};
+        addr = MATRIX_A_BASE + (i*`TEST_MATRIX_DIM+j)*4;
         direction = 2; // Write operation
         @(posedge opdone);
         $display("matrixA[%d,%d] = %d", i, j, $signed(data));
         //$display("address: %x, data: %d", addr, $signed(data));
+      end
+    end
 
+    for (int i = 0; i < `TEST_MATRIX_DIM; i = i + 1) begin
+      for (int j = 0; j < `TEST_MATRIX_DIM; j = j + 1) begin
         // Write data to matrix B
-        addr = {8'h31, 2'b10, i[`SEQ_BITS:0], j[`SEQ_BITS:0]};
+        addr = MATRIX_B_BASE + (i*`TEST_MATRIX_DIM+j)*4;
         direction = 2; // Write operation
         @(posedge opdone);
         $display("matrixB[%d,%d] = %d", i, j, $signed(data));
@@ -185,16 +197,25 @@ module AI_Accelerator_Top_TB;
     end
 
     data = -1;  // OK. Go now
-    addr = 32'h3100_0005;
+    addr = CTRL_BASE+5*4;
     direction = 1; // Write operation
     @(posedge opdone);
+
+    // Hexdump
+    /*for (int i = 0; i < `MEM_SIZE*`MEM_SIZE; i = i + 1) begin
+        addr = CTRL_BASE + i*4;
+        direction = 2; // Read operation
+        @(posedge opdone);
+        $display("Hexdump -> %x = %d", addr, $signed(data));
+    end*/
 
     // Read data from matrix C
     for (int i = 0; i < `TEST_MATRIX_DIM; i = i + 1) begin
       for (int j = 0; j < `TEST_MATRIX_DIM; j = j + 1) begin
-        addr = {8'h31, 2'b11, i[`SEQ_BITS:0], j[`SEQ_BITS:0]};
+        addr = MATRIX_C_BASE + (i*`TEST_MATRIX_DIM+j)*4;
         direction = 2; // Read operation
         @(posedge opdone);
+        //$display("Read C -> %x = %d", addr, $signed(data));
         $display("matrixC[%d,%d] = %d", i, j, $signed(data));
       end
     end

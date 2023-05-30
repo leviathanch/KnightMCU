@@ -2,38 +2,39 @@ module Matrix_Multiplication (
   input wire         clk,
   input wire         reset,
   input wire         enable,
-  input wire [32*6-1:0]  operation_reg_port,
-  input wire [32*`MEM_SIZE*`MEM_SIZE-1:0]  matrixA_in_port,
-  input wire [32*`MEM_SIZE*`MEM_SIZE-1:0]  matrixB_in_port,
-  output wire [32*`MEM_SIZE*`MEM_SIZE-1:0]  matrixC_out_port,
+  input wire [32*(2*`MEM_SIZE*`MEM_SIZE+5)-1:0] mem_i,
+  output wire [32*`MEM_SIZE*`MEM_SIZE-1:0] mem_result_o,
   output reg         done
 );
-
-  wire [31:0]  operation_reg [6:0];
-  wire [31:0]  matrixA_in [`MEM_SIZE:0][`MEM_SIZE:0];
-  wire [31:0]  matrixB_in [`MEM_SIZE:0][`MEM_SIZE:0];
-  reg [31:0]  matrixC_out [`MEM_SIZE:0][`MEM_SIZE:0];
-
-  // wiring of registers
-  for (genvar i = 0; i < `MEM_SIZE; i = i + 1) begin
-    for (genvar j = 0; j < `MEM_SIZE; j = j + 1) begin
-      assign matrixA_in[i][j] = matrixA_in_port[((i*`MEM_SIZE)+j)*32+31:((i*`MEM_SIZE)+j)*32];
-      assign matrixB_in[i][j] = matrixB_in_port[((i*`MEM_SIZE)+j)*32+31:((i*`MEM_SIZE)+j)*32];
-      assign matrixC_out_port[((i*`MEM_SIZE)+j)*32+31:((i*`MEM_SIZE)+j)*32] = matrixC_out[i][j];
-    end
-  end
-  for (genvar i = 0; i < 6; i = i + 1) begin
-    assign operation_reg[i] = operation_reg_port[i*32+31:i*32];
+  // packing inputs:
+  wire [31:0] memory_inputs [2*`MEM_SIZE*`MEM_SIZE+5:0];
+  for (genvar i = 0; i < 2*`MEM_SIZE*`MEM_SIZE+5; i = i + 1) begin // packing inputs
+    assign memory_inputs[i] = mem_i[i*32+31:i*32];
   end
 
-  // Internal registers and wires
+  // unpacking outputs
+  reg [31:0] mem_result [`MEM_SIZE*`MEM_SIZE-1:0];
+  for (genvar i = 0; i < `MEM_SIZE*`MEM_SIZE; i = i + 1) begin // unpacking results
+    assign mem_result_o[i*32+31:i*32] = mem_result[i];
+  end
+
+  // FSM variables
   reg integer i;
   reg integer j;
   reg integer k;
-  reg integer N; // width A
-  reg integer M; // height A
-  reg integer P; // height B
   reg integer state;
+
+  // Dynamic address calculation
+  reg integer wa; // width A
+  reg integer ha; // height A
+  reg integer wb; // width B
+  reg integer hb; // height B
+
+  wire [31:0] base_addr_a;
+  wire [31:0] base_addr_b;
+  wire [31:0] base_addr_c;
+  assign base_addr_a = 32'h0000_0006;
+  assign base_addr_b = base_addr_a + wa*ha;
 
   // State definition
   localparam IDLE = 0;
@@ -43,10 +44,10 @@ module Matrix_Multiplication (
   localparam FSM_DONE = 4;
 
   /* In C we would do two loops like this:
-  for (int i = 0; i < N; i++) {
-    for (int j = 0; j < P; j++) {
+  for (int i = 0; i < wa; i++) {
+    for (int j = 0; j < hb; j++) {
       matrixC_out[i][j] = 0;  // Initialize the element in the result matrix
-      for (int k = 0; k < M; k++) {
+      for (int k = 0; k < ha; k++) {
         matrixC_out[i][j] += matrixA_in[i][k] * matrixB_in[k][j];
       }
     }
@@ -63,18 +64,20 @@ module Matrix_Multiplication (
   // Assign initial state
   always @(posedge clk) begin
     if (reset) begin
+      // reset dimensions
+      wa <= 0;
+      ha <= 0;
+      wb <= 0;
+      hb <= 0;
+      // reset FSM
       state <= IDLE;
-      M <= 0;
-      N <= 0;
-      P <= 0;
       i <= 0;
       j <= 0;
       k <= 0;
-      done <= 1'b1;
-      for (integer i = 0; i < `MEM_SIZE; i = i + 1) begin
-        for (integer j = 0; j < `MEM_SIZE; j = j + 1) begin
-          matrixC_out[i][j] <= 0;  // Initialize the element in the result matrix
-        end
+      done <= 1'b1; // go into ready state
+      // reset result register
+      for (integer i = 0; i < `MEM_SIZE*`MEM_SIZE; i = i + 1) begin
+        mem_result[i] <= 0;
       end
     end
     else if (enable) begin
@@ -94,38 +97,42 @@ module Matrix_Multiplication (
              4: height B
              5: done writing values, go!
           */
-          N <= operation_reg[1]; // width A
-          M <= operation_reg[2]; // height A
-          P <= operation_reg[4]; // height B
-          for (integer i = 0; i < `MEM_SIZE; i = i + 1) begin
-            for (integer j = 0; j < `MEM_SIZE; j = j + 1) begin
-              matrixC_out[i][j] <= 0;  // Initialize the element in the result matrix
-            end
+          // values for calculating base addresses
+          wa <= memory_inputs[1]; // width A
+          ha <= memory_inputs[2]; // height A
+          wb <= memory_inputs[3]; // width B
+          hb <= memory_inputs[4]; // height B
+          
+          for (integer i = 0; i < `MEM_SIZE*`MEM_SIZE; i = i + 1) begin
+            mem_result[i] <= 0;
           end
         end
-        LOOP1: begin // for (int i = 0; i < N; i++) {
-          if (i < N) begin
+        LOOP1: begin // for (int i = 0; i < wa; i++) {
+          if (i < wa) begin
             state <= LOOP2;
           end
           else begin
             state <= FSM_DONE;
           end
         end
-        LOOP2: begin // for (int j = 0; j < P; j++) {
-          if (j < P) begin
+        LOOP2: begin // for (int j = 0; j < hb; j++) {
+          if (j < hb) begin
             state <= LOOP3;
           end
           else begin
             state <= LOOP1;
-            i <= i + `PARALLEL_MULT_JOBS; // Parallelism
+            i <= i + `PARALLEL_MULT_JOBS; // parallelism
+            //i <= i + 1;
             j <= 0;
           end
         end
-        LOOP3: begin // for (int k = 0; k < M; k++) {
+        LOOP3: begin // for (int k = 0; k < ha; k++) {
+          //mem_result[i*hb+j] <= mem_result[i*hb+j] + memory_inputs[base_addr_a+i*wa+k] * memory_inputs[base_addr_b+k*wb+j];
           for(integer g = 0; g < `PARALLEL_MULT_JOBS; g = g +1 ) begin
-            matrixC_out[i+g][j] <= matrixC_out[i+g][j] + matrixA_in[i+g][k] * matrixB_in[k][j]; // Parallelism
+            //matrixC_out[i+g][j] <= matrixC_out[i+g][j] + matrixA_in[i+g][k] * matrixB_in[k][j]; // parallelism
+            mem_result[(i+g)*hb+j] <= mem_result[(i+g)*hb+j] + memory_inputs[base_addr_a+(i+g)*wa+k] * memory_inputs[base_addr_b+k*wb+j];
           end
-          if (k < M - 1) begin
+          if (k < ha - 1) begin
             state <= LOOP3;
             k <= k + 1;
           end

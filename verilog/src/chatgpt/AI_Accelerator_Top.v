@@ -66,8 +66,14 @@ module AI_Accelerator_Top (
   reg busy;
   reg started;
   wire strobe;
+  reg last_wb_ack; // the readyness signal
+
+  assign mj = wb_addr_i[`SEQ_BITS:0];
+  assign mi = wb_addr_i[`SEQ_BITS+`SEQ_BITS:`SEQ_BITS+1];
+  assign prefix = wb_addr_i[23:22];
   
   always @(posedge wb_clk_i) begin
+    last_wb_ack <= wb_ack;
     //$display("%x, %x", operation_reg[5], operation_reg[0]);
     if ( wb_rst_i ) begin
       busy <= 1'b0;
@@ -75,6 +81,7 @@ module AI_Accelerator_Top (
       multiplier_enable <= 1'b0; // Disable other modules by default
       wb_data_o <= 32'b0;
       wb_ack <= 1'b0;
+      last_wb_ack <= 1'b0;
       for (integer i=0; i < 6; i++) begin
         operation_reg[i] <= 0;
       end
@@ -91,7 +98,7 @@ module AI_Accelerator_Top (
     else if (started) begin
       started <= 1'b0;
     end
-    else if ( wb_we_i && wb_stb && !busy ) begin
+    else if ( wb_we_i && wb_stb && !last_wb_ack && !busy ) begin // write operation
       if (prefix == 2'b00) begin// Operation register address
         wb_ack <= 1'b1;
         operation_reg[wb_addr_i[3:0]] <= wb_data_i;
@@ -168,9 +175,5 @@ module AI_Accelerator_Top (
       endcase
     end
   end
-
-  assign mj = wb_addr_i[`SEQ_BITS:0];
-  assign mi = wb_addr_i[`SEQ_BITS+`SEQ_BITS:`SEQ_BITS+1];
-  assign prefix = wb_addr_i[23:22];
   
 endmodule

@@ -133,6 +133,7 @@ module AI_Accelerator_Top (
           32'h0000_0001: begin // matrix multiplication
             if ( matrix_mult_done ) begin
               wb_ack <= 1'b1;
+              $display("%d, %d", mi, mj);
               if (mi<`MEM_SIZE && mj<`MEM_SIZE)
                 wb_data_o <= matrix_mult_result[mi][mj];
               else
@@ -169,7 +170,7 @@ module AI_Accelerator_Top (
   end
 
   assign mj = wb_addr_i[`SEQ_BITS:0];
-  assign mi = wb_addr_i[29:`SEQ_BITS+1];
-  assign prefix = wb_addr_i[31:30];
+  assign mi = wb_addr_i[`SEQ_BITS+`SEQ_BITS:`SEQ_BITS+1];
+  assign prefix = wb_addr_i[23:22];
   
 endmodule

@@ -23,7 +23,7 @@ module AI_Accelerator_Top_TB;
 
   // Parameters
   parameter CLK_PERIOD = 1;  // Clock period in ns
-  parameter CTRL_BASE = 32'h3010_0000;
+  parameter CTRL_BASE = 32'h3200_0000;
   parameter MATRIX_A_BASE = CTRL_BASE + 4*6;
   parameter MATRIX_B_BASE = MATRIX_A_BASE + 4*`TEST_MATRIX_DIM*`TEST_MATRIX_DIM;
   parameter MATRIX_C_BASE = CTRL_BASE + 4*`IN_MEM_SIZE;
@@ -39,7 +39,7 @@ module AI_Accelerator_Top_TB;
   wire wb_ack;
   
   // Instantiate the DUT
-  AI_Accelerator_Top dut (
+  AI_Accelerator_Top #(32'h3200_0000) dut (
     .wb_clk_i(clk),
     .wb_rst_i(reset),
     .wb_addr_i(wb_addr_i),
@@ -69,7 +69,7 @@ module AI_Accelerator_Top_TB;
   end
 
   // WB access job
-  reg [31:0] data;
+  reg [`TYPE_BW-1:0] data;
   reg [31:0] addr;
   integer direction;
   reg opdone;
@@ -95,7 +95,7 @@ module AI_Accelerator_Top_TB;
       #1;
       wb_stb = 1'b1;
       @(posedge wb_ack);
-      data = wb_data_o;
+      data = wb_data_o[`TYPE_BW-1:0];
       wb_stb = 1'b0;
       #1;
       direction = 0;

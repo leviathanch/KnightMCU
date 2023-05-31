@@ -20,3 +20,5 @@ Plus 2 matrices
 `define IN_MEM_SIZE (6+(2*`MEM_SIZE*`MEM_SIZE))
 // Output memory: One matrix
 `define OUT_MEM_SIZE (`MEM_SIZE*`MEM_SIZE)
+//`define TYPE_BW 32 // int32_t
+`define TYPE_BW 16 // int16_t

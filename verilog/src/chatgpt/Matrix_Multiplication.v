@@ -2,20 +2,20 @@ module Matrix_Multiplication (
   input wire         clk,
   input wire         reset,
   input wire         enable,
-  input wire [(32*`IN_MEM_SIZE)-1:0] mem_i,
-  output wire [(32*`OUT_MEM_SIZE)-1:0] mem_result_o,
+  input wire [(`TYPE_BW*`IN_MEM_SIZE)-1:0] mem_i,
+  output wire [(`TYPE_BW*`OUT_MEM_SIZE)-1:0] mem_result_o,
   output reg         done
 );
   // packing inputs:
-  wire [31:0] memory_inputs [`IN_MEM_SIZE-1:0];
+  wire [`TYPE_BW-1:0] memory_inputs [`IN_MEM_SIZE-1:0];
   for (genvar i = 0; i < `IN_MEM_SIZE; i = i + 1) begin // packing inputs
-    assign memory_inputs[i] = mem_i[i*32+31:i*32];
+    assign memory_inputs[i] = mem_i[(i*`TYPE_BW)+`TYPE_BW-1:i*`TYPE_BW];
   end
 
   // unpacking outputs
-  reg [31:0] mem_result [`OUT_MEM_SIZE-1:0];
+  reg [`TYPE_BW-1:0] mem_result [`OUT_MEM_SIZE-1:0];
   for (genvar i = 0; i < `OUT_MEM_SIZE; i = i + 1) begin // unpacking results
-    assign mem_result_o[i*32+31:i*32] = mem_result[i];
+    assign mem_result_o[(i*`TYPE_BW)+`TYPE_BW-1:i*`TYPE_BW] = mem_result[i];
   end
 
   // FSM variables

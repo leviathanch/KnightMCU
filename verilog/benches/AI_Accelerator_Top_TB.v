@@ -26,7 +26,7 @@ module AI_Accelerator_Top_TB;
   parameter CTRL_BASE = 32'h3010_0000;
   parameter MATRIX_A_BASE = CTRL_BASE + 4*6;
   parameter MATRIX_B_BASE = MATRIX_A_BASE + 4*`TEST_MATRIX_DIM*`TEST_MATRIX_DIM;
-  parameter MATRIX_C_BASE = CTRL_BASE + `MEM_SIZE*`MEM_SIZE; //+ 6; // + 4*4;
+  parameter MATRIX_C_BASE = CTRL_BASE + 4*`IN_MEM_SIZE;
 
   // Inputs
   reg [31:0] wb_addr_i;

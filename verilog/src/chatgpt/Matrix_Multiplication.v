@@ -2,19 +2,19 @@ module Matrix_Multiplication (
   input wire         clk,
   input wire         reset,
   input wire         enable,
-  input wire [32*(2*`MEM_SIZE*`MEM_SIZE+5)-1:0] mem_i,
-  output wire [32*`MEM_SIZE*`MEM_SIZE-1:0] mem_result_o,
+  input wire [(32*`IN_MEM_SIZE)-1:0] mem_i,
+  output wire [(32*`OUT_MEM_SIZE)-1:0] mem_result_o,
   output reg         done
 );
   // packing inputs:
-  wire [31:0] memory_inputs [2*`MEM_SIZE*`MEM_SIZE+5:0];
-  for (genvar i = 0; i < 2*`MEM_SIZE*`MEM_SIZE+5; i = i + 1) begin // packing inputs
+  wire [31:0] memory_inputs [`IN_MEM_SIZE-1:0];
+  for (genvar i = 0; i < `IN_MEM_SIZE; i = i + 1) begin // packing inputs
     assign memory_inputs[i] = mem_i[i*32+31:i*32];
   end
 
   // unpacking outputs
-  reg [31:0] mem_result [`MEM_SIZE*`MEM_SIZE-1:0];
-  for (genvar i = 0; i < `MEM_SIZE*`MEM_SIZE; i = i + 1) begin // unpacking results
+  reg [31:0] mem_result [`OUT_MEM_SIZE-1:0];
+  for (genvar i = 0; i < `OUT_MEM_SIZE; i = i + 1) begin // unpacking results
     assign mem_result_o[i*32+31:i*32] = mem_result[i];
   end
 
@@ -76,7 +76,7 @@ module Matrix_Multiplication (
       k <= 0;
       done <= 1'b1; // go into ready state
       // reset result register
-      for (integer i = 0; i < `MEM_SIZE*`MEM_SIZE; i = i + 1) begin
+      for (integer i = 0; i < `OUT_MEM_SIZE; i = i + 1) begin
         mem_result[i] <= 0;
       end
     end
@@ -103,7 +103,7 @@ module Matrix_Multiplication (
           wb <= memory_inputs[3]; // width B
           hb <= memory_inputs[4]; // height B
           
-          for (integer i = 0; i < `MEM_SIZE*`MEM_SIZE; i = i + 1) begin
+          for (integer i = 0; i < `OUT_MEM_SIZE; i = i + 1) begin
             mem_result[i] <= 0;
           end
         end

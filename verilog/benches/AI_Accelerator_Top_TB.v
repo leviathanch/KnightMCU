@@ -33,15 +33,17 @@ module AI_Accelerator_Top_TB;
   reg wb_we_i;
   reg [31:0] wb_data_i;
   reg wb_stb;
+  reg wb_cycle;
 
   // Outputs
   wire [31:0] wb_data_o;
   wire wb_ack;
   
   // Instantiate the DUT
-  AI_Accelerator_Top #(32'h3200_0000) dut (
+  AI_Accelerator_Top #(CTRL_BASE) dut (
     .wb_clk_i(clk),
     .wb_rst_i(reset),
+    .wb_cyc_i(wb_cycle),
     .wb_addr_i(wb_addr_i),
     .wb_we_i(wb_we_i),
     .wb_data_i(wb_data_i),
@@ -54,7 +56,7 @@ module AI_Accelerator_Top_TB;
   reg clk;
   initial begin
     clk = 1;
-    repeat (5000000) begin
+    repeat (2000) begin
       #1 clk = ~clk;
     end
   end
@@ -78,26 +80,32 @@ module AI_Accelerator_Top_TB;
       opdone = 0;
       wb_data_i = data;
       wb_addr_i = addr;
-      #1;
-      wb_stb = 1'b1;
-      wb_we_i = 1'b1;
+      wb_we_i = 1;
+      wb_stb = 1;
+      wb_cycle = 1;
       @(posedge wb_ack);
-      wb_stb = 1'b0;
-      wb_we_i = 1'b0;
-      #1;
+      #10;
+      wb_cycle = 0;
+      wb_stb = 0;
+      wb_we_i = 0;
       direction = 0;
       opdone = 1;
     end
     else if ( direction == 2 ) begin // Read
       opdone = 0;
-      wb_we_i = 1'b0;
+      wb_data_i = 0;
       wb_addr_i = addr;
+      wb_we_i = 0;
       #1;
-      wb_stb = 1'b1;
+      wb_stb = 1;
+      #1;
+      wb_cycle = 1;
       @(posedge wb_ack);
-      data = wb_data_o[`TYPE_BW-1:0];
-      wb_stb = 1'b0;
+      wb_cycle = 0;
+      wb_stb = 0;
       #1;
+      data = wb_data_o[`TYPE_BW-1:0];
+      #10;
       direction = 0;
       opdone = 1;
     end
@@ -113,6 +121,7 @@ module AI_Accelerator_Top_TB;
     data = 0;
     addr = 0;
     direction = 0;
+    wb_cycle = 0;
 
     // Dump signals to VCD file
     $dumpfile("waveform.vcd");
@@ -200,17 +209,24 @@ module AI_Accelerator_Top_TB;
     addr = CTRL_BASE+5*4;
     direction = 1; // Write operation
     @(posedge opdone);
+    #1;
 
     // Hexdump
     /*for (int i = 0; i < `MEM_SIZE*`MEM_SIZE; i = i + 1) begin
         addr = CTRL_BASE + i*4;
         direction = 2; // Read operation
         @(posedge opdone);
-        $display("Hexdump -> %x = %d", addr, $signed(data));
+        //$display("Hexdump -> %x = %d", addr, $signed(data));
     end*/
+    for (int i = 0; i < `MEM_SIZE*`MEM_SIZE; i = i + 1) begin
+        addr = MATRIX_C_BASE + i*4;
+        direction = 2; // Read operation
+        @(posedge opdone);
+        $display("Hexdump -> %x = %d", addr, $signed(data));
+    end
 
     // Read data from matrix C
-    for (int i = 0; i < `TEST_MATRIX_DIM; i = i + 1) begin
+    /*for (int i = 0; i < `TEST_MATRIX_DIM; i = i + 1) begin
       for (int j = 0; j < `TEST_MATRIX_DIM; j = j + 1) begin
         addr = MATRIX_C_BASE + (i*`TEST_MATRIX_DIM+j)*4;
         direction = 2; // Read operation
@@ -218,7 +234,7 @@ module AI_Accelerator_Top_TB;
         //$display("Read C -> %x = %d", addr, $signed(data));
         $display("matrixC[%d,%d] = %d", i, j, $signed(data));
       end
-    end
+    end*/
 
     #100;  // Wait for a few clock cycles after the test case
     $finish;  // End the simulation

@@ -10,7 +10,6 @@ module Matrix_Multiplication (
   output reg         done
 );
   // FSM variables
-  reg [31:0] param_idx;
   reg [31:0] i;
   reg [31:0] j;
   reg [31:0] k;
@@ -73,7 +72,6 @@ module Matrix_Multiplication (
       width_a <= 0;
       height_b <= 0;
       width_b <= 0;
-      param_idx <= 0;
       mem_operation <= 2'b00;
       addr_o <= 0;
       data_o <= 0;
@@ -103,7 +101,6 @@ module Matrix_Multiplication (
           addr_o <= 0;
           mem_operation <= 2'b00;
           data_o <= 0;
-          param_idx <= 0;
           done <= 0;
           // reset result register
           result_buffer<= 0;
@@ -207,11 +204,9 @@ module Matrix_Multiplication (
             addr_o <= base_addr_c+i*width_b+j;
             data_o <= result_buffer;
             result_buffer <= 0;
-            param_idx <= 0;
           end
           else if (mem_opdone) begin
             //$display("Wrote result %d to %x (i=%d, j=%d, k=%d)", $signed(data_o), addr_o, i, j, k);
-            param_idx <= 0;
             state <= LOOP2;
             mem_operation <= 2'b00; // done
             addr_o <= 0;

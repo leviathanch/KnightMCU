@@ -173,7 +173,6 @@ module Matrix_Multiplication (
           end
           else if (mem_opdone) begin
             operator1_buffer <= data_i;
-            //$display("Got operator 1 %d from %x (i=%d, j=%d, k=%d)", $signed(data_i), addr_o, i, j, k);
             state <= LOAD_OPERATOR2;
             mem_operation <= 2'b00; // done
             addr_o <= 0;
@@ -186,7 +185,6 @@ module Matrix_Multiplication (
           end
           else if (mem_opdone) begin
             operator2_buffer <= data_i;
-            //$display("Got operator 2 %d from %x (i=%d, j=%d, k=%d)", $signed(data_i), addr_o, i, j, k);
             state <= PERFORM_OPERATION;
             mem_operation <= 2'b00; // done
             addr_o <= 0;
@@ -194,7 +192,6 @@ module Matrix_Multiplication (
         end
         PERFORM_OPERATION: begin
           result_buffer <= result_buffer + operator1_buffer * operator2_buffer;
-          //$display("%d + %d * %d\n", $signed(result_buffer), $signed(operator1_buffer), $signed(operator2_buffer));
           state <= LOOP3;
           k <= k + 1;
         end
@@ -206,7 +203,6 @@ module Matrix_Multiplication (
             result_buffer <= 0;
           end
           else if (mem_opdone) begin
-            //$display("Wrote result %d to %x (i=%d, j=%d, k=%d)", $signed(data_o), addr_o, i, j, k);
             state <= LOOP2;
             mem_operation <= 2'b00; // done
             addr_o <= 0;

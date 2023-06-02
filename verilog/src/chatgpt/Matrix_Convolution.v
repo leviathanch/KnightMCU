@@ -202,7 +202,6 @@ module Matrix_Convolution (
           else if (mem_opdone) begin
             operator1_buffer <= data_i;
             state <= LOAD_OPERATOR2;
-            $display("LOAD_OPERATOR1 value=%d, i=%d, j=%d, k=%d, l=%d", $signed(data_i), i, j, k, l );
             mem_operation <= 2'b00; // done
             addr_o <= 0;
           end          
@@ -213,10 +212,8 @@ module Matrix_Convolution (
             addr_o <= base_addr_filter + k*width_filter + l;
           end
           else if (mem_opdone) begin
-            if (addr_o < height_matrix*width_matrix+5 ) $display("baddr OOB, i=%d, j=%d, k=%d, l=%d", data_i, i, j, k, l);
             operator2_buffer <= data_i;
             state <= PERFORM_OPERATION;
-            $display("LOAD_OPERATOR2 value=%d, i=%d, j=%d, k=%d, l=%d", data_i, i, j, k, l );
             mem_operation <= 2'b00; // done
             addr_o <= 0;
           end
@@ -235,7 +232,6 @@ module Matrix_Convolution (
             data_o <= result_buffer;
           end
           else if (mem_opdone) begin
-            $display("Wrote %d to %x. i=%d, j=%d, k=%d, l=%d", $signed(data_o), addr_o, i, j, k, l);
             result_buffer <= 0;
             mem_operation <= 2'b00; // done
             addr_o <= 0;

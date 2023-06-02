@@ -1,5 +1,5 @@
 AI_Accelerator_Top_TB:
-	iverilog -o AI_Accelerator_Top_TB -s AI_Accelerator_Top_TB -g2005-sv -pARRAY_SIZE_LIMIT=1073807361 \
+	iverilog -o AI_Accelerator_Top_TB -s AI_Accelerator_Top_TB -pARRAY_SIZE_LIMIT=1073807361 \
 		verilog/src/mine/constants.v \
 		verilog/src/chatgpt/Matrix_Multiplication.v \
 		verilog/src/chatgpt/AI_Accelerator_Top.v \

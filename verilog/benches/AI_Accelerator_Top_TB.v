@@ -26,7 +26,7 @@ module AI_Accelerator_Top_TB;
   parameter CTRL_BASE = 32'h3200_0000;
   parameter MATRIX_A_BASE = CTRL_BASE + 4*6;
   parameter MATRIX_B_BASE = MATRIX_A_BASE + 4*`TEST_MATRIX_DIM*`TEST_MATRIX_DIM;
-  parameter MATRIX_C_BASE = CTRL_BASE + 4*`IN_MEM_SIZE;
+  parameter MATRIX_C_BASE = MATRIX_B_BASE + 4*`TEST_MATRIX_DIM*`TEST_MATRIX_DIM;
 
   // Inputs
   reg [31:0] wb_addr_i;
@@ -136,7 +136,7 @@ module AI_Accelerator_Top_TB;
        5: done writing values, go! 
     */
 
-    #100;
+    #10;
 
     data = 1;               // The operation to be executed
     addr = CTRL_BASE;
@@ -160,8 +160,8 @@ module AI_Accelerator_Top_TB;
     @(posedge opdone);
 
     // Write data to matrix A and matrix B
-    for (int i = 0; i < `TEST_MATRIX_DIM; i = i + 1) begin
-      for (int j = 0; j < `TEST_MATRIX_DIM; j = j + 1) begin
+    for (integer i = 0; i < `TEST_MATRIX_DIM; i = i + 1) begin
+      for (integer j = 0; j < `TEST_MATRIX_DIM; j = j + 1) begin
         // Write data to matrix A
         addr = MATRIX_A_BASE + (i*`TEST_MATRIX_DIM+j)*4;
         data = matrixA[i][j];
@@ -171,8 +171,8 @@ module AI_Accelerator_Top_TB;
       end
     end
 
-    for (int i = 0; i < `TEST_MATRIX_DIM; i = i + 1) begin
-      for (int j = 0; j < `TEST_MATRIX_DIM; j = j + 1) begin
+    for (integer i = 0; i < `TEST_MATRIX_DIM; i = i + 1) begin
+      for (integer j = 0; j < `TEST_MATRIX_DIM; j = j + 1) begin
         // Write data to matrix B
         addr = MATRIX_B_BASE + (i*`TEST_MATRIX_DIM+j)*4;
         data = matrixB[i][j];
@@ -183,8 +183,8 @@ module AI_Accelerator_Top_TB;
     end
 
     // Read data from matrix A and matrix B
-    for (int i = 0; i < `TEST_MATRIX_DIM; i = i + 1) begin
-      for (int j = 0; j < `TEST_MATRIX_DIM; j = j + 1) begin
+    for (integer i = 0; i < `TEST_MATRIX_DIM; i = i + 1) begin
+      for (integer j = 0; j < `TEST_MATRIX_DIM; j = j + 1) begin
         // Write data to matrix A
         addr = MATRIX_A_BASE + (i*`TEST_MATRIX_DIM+j)*4;
         direction = 2; // Write operation
@@ -194,8 +194,8 @@ module AI_Accelerator_Top_TB;
       end
     end
 
-    for (int i = 0; i < `TEST_MATRIX_DIM; i = i + 1) begin
-      for (int j = 0; j < `TEST_MATRIX_DIM; j = j + 1) begin
+    for (integer i = 0; i < `TEST_MATRIX_DIM; i = i + 1) begin
+      for (integer j = 0; j < `TEST_MATRIX_DIM; j = j + 1) begin
         // Write data to matrix B
         addr = MATRIX_B_BASE + (i*`TEST_MATRIX_DIM+j)*4;
         direction = 2; // Write operation
@@ -218,7 +218,7 @@ module AI_Accelerator_Top_TB;
         @(posedge opdone);
         //$display("Hexdump -> %x = %d", addr, $signed(data));
     end*/
-    for (int i = 0; i < `MEM_SIZE*`MEM_SIZE; i = i + 1) begin
+    for (integer i = 0; i < `TEST_MATRIX_DIM*`TEST_MATRIX_DIM; i = i + 1) begin
         addr = MATRIX_C_BASE + i*4;
         direction = 2; // Read operation
         @(posedge opdone);
@@ -236,7 +236,7 @@ module AI_Accelerator_Top_TB;
       end
     end*/
 
-    #100;  // Wait for a few clock cycles after the test case
+    #200;  // Wait for a few clock cycles after the test case
     $finish;  // End the simulation
 
   end

@@ -12,9 +12,6 @@ module AI_Accelerator_Top #(
   output reg         wb_ack, // the readyness signal
   output reg [31:0]  wb_data_o
 );
-
-  // Genvar
-  genvar g;
   
   // Parallelism
   reg [31:0] p;
@@ -31,12 +28,47 @@ module AI_Accelerator_Top #(
      // rest of space is the input data
      6+*: The matrices
   */
-  reg [`TYPE_BW-1:0] memory_inputs [`IN_MEM_SIZE-1:0]; // the memory
-  // wiring of registers
-  wire [`TYPE_BW*`IN_MEM_SIZE-1:0] memory_inputs_unpacked;
-  // unpacking
-  for (g = 0; g < `IN_MEM_SIZE; g = g + 1) begin
-      assign memory_inputs_unpacked[(g*`TYPE_BW)+`TYPE_BW-1:(g*`TYPE_BW)] = memory_inputs[g];
+  reg [`TYPE_BW-1:0] DFFRAM [`DFF_MEM_SIZE-1:0]; // the memory
+  
+  /*
+    Memory controller
+  */
+  reg mem_opdone;
+  reg next_mem_opdone;
+  reg [1:0] mem_ctl_state;
+
+  always @(posedge wb_clk_i) begin
+    mem_opdone <= next_mem_opdone;
+    if (wb_rst_i) begin
+      busy <= 1'b0;
+      started <= 1'b0;
+      multiplier_enable <= 1'b0;
+      mmul_data_i <= 0;
+      mem_opdone <= 0;
+      next_mem_opdone <= 0;
+    end
+    else if ( mem_opdone ) begin
+      mem_opdone <= 0;
+      next_mem_opdone <= 0;
+    end
+    else if (! mem_opdone )begin
+      case ( DFFRAM[0] ) // Register 1 holds the operation to be executed
+        // Enable corresponding module based on operation value in operation register
+        `TYPE_BW'h1: begin // matrix multiplication
+          case (mmul_mem_op)
+            2'b01: begin // Read
+              mmul_data_i <= DFFRAM[mmul_addr_o];
+              next_mem_opdone <= 1;
+            end
+            2'b11: begin // Write
+              DFFRAM[mmul_addr_o] <= mmul_data_o;
+              mmul_data_i <= 0;
+              next_mem_opdone <= 1;
+            end
+          endcase
+        end
+      endcase
+    end
   end
 
   /*
@@ -48,20 +80,20 @@ module AI_Accelerator_Top #(
     .clk(wb_clk_i),
     .reset(wb_rst_i),
     .enable(multiplier_enable),
-    .mem_i(memory_inputs_unpacked),
-    .mem_result_o(matrix_mult_result_unpacked),
-    .done(matrix_mult_done)
+    .done(matrix_mult_done),
+    .addr_o(mmul_addr_o),
+    .data_i(mmul_data_i),
+    .data_o(mmul_data_o),
+    .mem_opdone(mem_opdone),
+    .mem_operation(mmul_mem_op)
   );
   // Matrix multiplication result wire
   reg multiplier_enable; // on switch
   wire matrix_mult_done; // status wire
-  // the memory:
-  wire [(`TYPE_BW*`OUT_MEM_SIZE)-1:0] matrix_mult_result_unpacked;
-  wire [`TYPE_BW-1:0] matrix_mult_result [`OUT_MEM_SIZE-1:0];
-  // unpacking
-  for (g = 0; g < `OUT_MEM_SIZE; g = g + 1) begin
-    assign matrix_mult_result[g] = matrix_mult_result_unpacked[(g*`TYPE_BW)+`TYPE_BW-1:(g*`TYPE_BW)];
-  end
+  reg [`TYPE_BW-1:0] mmul_data_i;
+  wire [`TYPE_BW-1:0] mmul_data_o;
+  wire [31:0] mmul_addr_o;
+  wire [1:0] mmul_mem_op; // Read 01 /Write 11 /None 00
 
   /*
     Control Unit
@@ -80,20 +112,18 @@ module AI_Accelerator_Top #(
       started <= 1'b0;
     end
     else begin
-      case (memory_inputs[0]) // Register 1 holds the operation to be executed
+      case (DFFRAM[0]) // Register 1 holds the operation to be executed
         // Enable corresponding module based on operation value in operation register
         `TYPE_BW'h1: begin // matrix multiplication
-          if( matrix_mult_done ) begin
-            if( busy ) begin
-              busy <= 1'b0;
-              multiplier_enable <= 1'b0; // Enable matrix multiplication module
-              memory_inputs[5] <= `TYPE_BW'h0; // Done
-            end
-            else if ( memory_inputs[5] == `TYPE_BW'hffff_ffff ) begin
-              busy <= 1'b1; // indicate that we started operation
-              multiplier_enable <= 1'b1; // Enable matrix multiplication module
-              started <= 1'b1;
-            end
+          if( matrix_mult_done && busy ) begin
+            busy <= 1'b0;
+            multiplier_enable <= 1'b0; // Enable matrix multiplication module
+            DFFRAM[5] <= `TYPE_BW'h0; // Done
+          end
+          else if ( DFFRAM[5] == `TYPE_BW'hffff_ffff ) begin
+            busy <= 1'b1; // indicate that we started operation
+            multiplier_enable <= 1'b1; // Enable matrix multiplication module
+            started <= 1'b1;
           end
         end
       endcase
@@ -111,41 +141,27 @@ module AI_Accelerator_Top #(
       wb_state <= 2'b00;
       wb_ack <= 1'b0;
       wb_data_o <= 32'b0;
-      for (p = 0; p < `IN_MEM_SIZE; p = p + 1) begin
-        memory_inputs[p] <= 0;
+      for (p = 0; p < `DFF_MEM_SIZE; p = p + 1) begin
+        DFFRAM[p] <= 0;
       end
     end
     else begin
       case (wb_state)
         2'b00: begin // Idle state
-          if ( busy) begin
+          if ( busy ) begin
             wb_ack <= 1'b0;
           end
           else if (wb_cyc_i && wb_stb && !wb_ack) begin
-            if (wb_addr_i >= ADDR_OFFSET && wb_addr_i < ADDR_OFFSET + 4*`IN_MEM_SIZE) begin
+            if (wb_addr_i >= ADDR_OFFSET && wb_addr_i < ADDR_OFFSET + 4*`DFF_MEM_SIZE) begin
               wb_ack <= 1'b1;
               if (wb_we_i) begin
                 wb_data_o <= 32'h0000_0000;
                 wb_state <= 2'b01; // Write state
               end else begin
                 // increments of 1 become 4 because 32 int32_t = 4 bytes:
-                wb_data_o <= memory_inputs[(wb_addr_i-ADDR_OFFSET)/4];
+                wb_data_o <= DFFRAM[(wb_addr_i-ADDR_OFFSET)/4];
                 wb_state <= 2'b10; // Read state
               end
-            end
-            else if ( wb_addr_i >= ADDR_OFFSET + 4*`IN_MEM_SIZE && wb_addr_i < ADDR_OFFSET + 4*(`IN_MEM_SIZE+`OUT_MEM_SIZE) ) begin// Matrix C address register address
-              wb_ack <= 1'b1;
-              case (memory_inputs[0])
-                `TYPE_BW'h0000_0001: begin // matrix multiplication
-                  // increments of 1 become 4 because 32 int32_t = 4 bytes:
-                  wb_data_o <= matrix_mult_result[(wb_addr_i-ADDR_OFFSET)/4-`IN_MEM_SIZE];
-                  wb_state <= 2'b10; // Read state
-                end
-                default: begin
-                  wb_data_o <= 0;
-                  wb_state <= 2'b10; // Read state
-                end
-              endcase
             end
             else begin
               wb_ack <= 1'b0;
@@ -161,7 +177,7 @@ module AI_Accelerator_Top #(
             wb_ack <= 1'b0;
           end else if (wb_we_i) begin
             // increments of 1 become 4 because 32 int32_t = 4 bytes:
-            memory_inputs[(wb_addr_i-ADDR_OFFSET)/4] <= wb_data_i; //[`TYPE_BW-1:0];
+            DFFRAM[(wb_addr_i-ADDR_OFFSET)/4] <= wb_data_i; //[`TYPE_BW-1:0];
             wb_ack <= 1'b1;
           end
         end

@@ -19,18 +19,18 @@ module Matrix_Convolution (
   reg [31:0] state;
 
   // Dynamic address calculation
-  reg [31:0] height_a; // width A
-  reg [31:0] width_a; // height A
-  reg [31:0] height_b; // width B
-  reg [31:0] width_b; // height B
+  reg [31:0] width_matrix; // width A
+  reg [31:0] height_matrix; // height A
+  reg [31:0] width_filter; // width filter
+  reg [31:0] height_filter; // height filter
 
   wire [31:0] base_addr_a;
-  wire [31:0] base_addr_b;
-  wire [31:0] base_addr_c;
+  wire [31:0] base_addr_filter;
+  wire [31:0] base_addr_result;
 
   assign base_addr_a = 32'h0000_0006; // 6 parameters
-  assign base_addr_b = base_addr_a + height_a*width_a;
-  assign base_addr_c = base_addr_b + height_a*width_a + height_b*width_b;
+  assign base_addr_filter = base_addr_a + height_matrix*width_matrix;
+  assign base_addr_result = base_addr_filter + height_matrix*width_matrix + height_filter*width_filter;
 
   // Buffers
   reg [31:0] result_buffer;
@@ -52,19 +52,20 @@ module Matrix_Convolution (
 
   /* In C we would do two loops like this:
     // Convolution operation
-    for (int i = 1; i < rows - 1; i++) {
-        for (int j = 1; j < cols - 1; j++) {
+    for (int i = 0; i < height_matrix - height_filter + 1; i++) {
+        for (int j = 0; j < width_matrix - width_filter + 1; j++) {
             int sum = 0;
 
-            for (int k = -1; k <= 1; k++) {
-                for (int l = -1; l <= 1; l++) {
-                    sum += A[i + k][j + l] * F[k + 1][l + 1];
+            for (int k = 0; k < height_filter; k++) {
+                for (int l = 0; l < width_filter; l++) {
+                    sum += A[i + k][j + l] * F[k][l];
                 }
             }
 
             result[i][j] = sum;
         }
     }
+    The result matrix has the dimension (width_matrix - width_filter - 1)x (height_matrix - height_filter - 1)
   But that won't work in Verilog, because for loops work differently,
   so we've got to implement this for loop as a state machine instead.
   */
@@ -78,14 +79,14 @@ module Matrix_Convolution (
   always @(posedge clk) begin
     // Assign initial values
     if (reset) begin
-      height_a <= 0;
-      width_a <= 0;
-      height_b <= 0;
-      width_b <= 0;
-      i <= 1;
-      j <= 1;
-      k <= -1;
-      l <= -1;
+      height_matrix <= 0;
+      width_matrix <= 0;
+      height_filter <= 0;
+      width_filter <= 0;
+      i <= 0;
+      j <= 0;
+      k <= 0;
+      l <= 0;
       data_o <= 0;
       addr_o <= 0;;
       mem_operation <= 2'b00;
@@ -101,18 +102,18 @@ module Matrix_Convolution (
       case (state)
         IDLE: begin
           state <= FETCH_PARAMS;
-          height_a <= 0;
-          width_a <= 0;
-          height_b <= 0;
-          width_b <= 0;
-          i <= 1;
-          j <= 1;
-          k <= -1;
-          l <= -1;
-          height_a <= 0;
-          width_a <= 0;
-          height_b <= 0;
-          width_b <= 0;
+          height_matrix <= 0;
+          width_matrix <= 0;
+          height_filter <= 0;
+          width_filter <= 0;
+          i <= 0;
+          j <= 0;
+          k <= 1;
+          l <= 2;
+          height_matrix <= 0;
+          width_matrix <= 0;
+          height_filter <= 0;
+          width_filter <= 0;
           addr_o <= 0;
           mem_operation <= 2'b00;
           data_o <= 0;
@@ -137,10 +138,10 @@ module Matrix_Convolution (
           else if ( addr_o < 5 ) begin
             if (mem_opdone) begin
               case (addr_o)
-                1: width_a <= data_i; // width A
-                2: height_a <= data_i; // height A
-                3: width_b <= data_i; // width B
-                4: height_b <= data_i; // height B
+                1: width_matrix <= data_i; // width A
+                2: height_matrix <= data_i; // height A
+                3: width_filter <= data_i; // width B
+                4: height_filter <= data_i; // height B
               endcase
               // Increment address
               addr_o <= addr_o + 1;
@@ -152,94 +153,97 @@ module Matrix_Convolution (
             mem_operation <= 2'b00; // done
           end
         end
-        LOOP1: begin // for (int i = 1; i < rows - 1; i++) {
-          $display("LOOP1");
-          if (i < height_a - 1) begin
+        LOOP1: begin // for (int i = 0; i < height_matrix - height_filter + 1; i++) {
+          if (i < height_matrix - height_filter + 1) begin
+            j <= 0;
             state <= LOOP2;
-            i <= i + 1;
           end
           else begin
             state <= FSM_DONE;
           end
         end
-        LOOP2: begin // for (int j = 1; j < cols - 1; j++) {
-        $display("LOOP2");
-          if (j < width_a - 1) begin
+        LOOP2: begin // for (int j = 0; j < width_matrix - width_filter + 1; j++) {
+          //$display("LOOP2 j=%d", $signed(j));
+          if ( j < width_matrix - width_filter + 1) begin
+            k <= 0;
             state <= LOOP3;
-            j <= j + 1;
           end
           else begin
             state <= LOOP1;
-            j <= 1;
+            i <= i + 1;
           end
         end
-        LOOP3: begin // for (int k = -1; k <= 1; k++) {
-        $display("LOOP3 %d", $signed(k));
-          if ($signed(k) < 2) begin
+        LOOP3: begin // for (int k = 0; k < height_filter; k++) {
+        //$display("LOOP3 k=%d", $signed(k));
+          if (k < height_filter) begin
+            l <= 0;
             state <= LOOP4;
-            k <= $signed(k) + 1;
-          end
-          else begin
-            state <= LOOP2;
-            k <= -1;
-          end
-        end
-        LOOP4: begin // for (int l = -1; l <= 1; l++) {
-        $display("LOOP4 %d", $signed(l));
-          if ($signed(l) < 2) begin
-            state <= LOAD_OPERATOR1;
-            l <= $signed(l) + 1;
           end
           else begin
             state <= WRITE_RESULT;
-            l <= -1;
           end
         end
+        LOOP4: begin // for (int l = 0; l < width_filter; l++) {
+          //$display("LOOP4 l=%d", $signed(l));
+          if (l < width_filter) begin
+            state <= LOAD_OPERATOR1;
+          end
+          else begin
+            state <= LOOP3;
+            k <= k + 1;
+          end
+        end
+        /* Fetch operator 1 and 2 */
         LOAD_OPERATOR1: begin // A[i + k][j + l]
-        $display("LOAD_OPERATOR1");
-        if ( addr_o == 0 ) begin
-          mem_operation <= 2'b01; // read
-          addr_o <= base_addr_a + (($signed(i) + $signed(k)) * $signed(width_a)) + ($signed(j) + $signed(l));
+          if ( addr_o == 0 ) begin
+            mem_operation <= 2'b01; // read
+            addr_o <= base_addr_a + (i+k)*width_matrix + (j+l);
+          end
+          else if (mem_opdone) begin
+            operator1_buffer <= data_i;
+            state <= LOAD_OPERATOR2;
+            $display("LOAD_OPERATOR1 value=%d, i=%d, j=%d, k=%d, l=%d", $signed(data_i), i, j, k, l );
+            mem_operation <= 2'b00; // done
+            addr_o <= 0;
+          end          
         end
-        else if (mem_opdone) begin
-          operator1_buffer <= data_i;
-          state <= LOAD_OPERATOR2;
-          mem_operation <= 2'b00; // done
-          addr_o <= 0;
-        end
-        end
-        LOAD_OPERATOR2: begin // F[k + 1][l + 1]
-        $display("LOAD_OPERATOR2");
-        if ( addr_o == 0 ) begin
-          mem_operation <= 2'b01; // read
-          addr_o <= base_addr_b + (($signed(k) + $signed(1) ) * $signed(width_b)) + ($signed(l) + $signed(1));
-        end
-        else if (mem_opdone) begin
-          operator2_buffer <= data_i;
-          state <= PERFORM_OPERATION;
-          mem_operation <= 2'b00; // done
-          addr_o <= 0;
-        end
+        LOAD_OPERATOR2: begin // F[k][l]
+          if ( addr_o == 0 ) begin
+            mem_operation <= 2'b01; // read
+            addr_o <= base_addr_filter + k*width_filter + l;
+          end
+          else if (mem_opdone) begin
+            if (addr_o < height_matrix*width_matrix+5 ) $display("baddr OOB, i=%d, j=%d, k=%d, l=%d", data_i, i, j, k, l);
+            operator2_buffer <= data_i;
+            state <= PERFORM_OPERATION;
+            $display("LOAD_OPERATOR2 value=%d, i=%d, j=%d, k=%d, l=%d", data_i, i, j, k, l );
+            mem_operation <= 2'b00; // done
+            addr_o <= 0;
+          end
         end
         PERFORM_OPERATION: begin
-        result_buffer <= $signed(result_buffer) + $signed(operator1_buffer) * $signed(operator2_buffer);
-        $display("%d + %d * %d\n", $signed(result_buffer), $signed(operator1_buffer), $signed(operator2_buffer));
-        state <= LOOP4;
+          result_buffer <= result_buffer + operator1_buffer * operator2_buffer;
+          l <= l + 1;
+          state <= LOOP4;
         end
+
+        /* Write out result into RAM */
         WRITE_RESULT: begin
-        if ( addr_o == 0 ) begin
-          mem_operation <= 2'b11; // write
-          addr_o <= base_addr_c + ($signed(i) * width_b) + $signed(j);
-          data_o <= result_buffer;
+          if ( addr_o == 0 ) begin
+            mem_operation <= 2'b11; // write
+            addr_o <= base_addr_result + i*(width_matrix-width_filter+1) + j;
+            data_o <= result_buffer;
+          end
+          else if (mem_opdone) begin
+            $display("Wrote %d to %x. i=%d, j=%d, k=%d, l=%d", $signed(data_o), addr_o, i, j, k, l);
+            result_buffer <= 0;
+            mem_operation <= 2'b00; // done
+            addr_o <= 0;
+            state <= LOOP2;
+            j <= j + 1;
+          end
         end
-        else if (mem_opdone) begin
-          $display("Wrote %d to %x", $signed(data_o), addr_o);
-          result_buffer <= 0;
-          state <= LOOP2;
-          mem_operation <= 2'b00; // done
-          addr_o <= 0;
-        end
-        end
+        /* Done state */
         FSM_DONE: begin
           done <= 1;
         end

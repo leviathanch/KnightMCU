@@ -9,9 +9,6 @@ module Matrix_Multiplication (
   output reg [1:0]   mem_operation, // Read 01 /Write 11 /None 00
   output reg         done
 );
-  // Genvar
-  genvar g;
-
   // FSM variables
   reg [31:0] param_idx;
   reg [31:0] i;
@@ -44,8 +41,8 @@ module Matrix_Multiplication (
   localparam LOOP1 = 2;
   localparam LOOP2 = 3;
   localparam LOOP3 = 4;
-  localparam FETCH_A_OPERATORS = 5;
-  localparam FETCH_B_OPERATOR = 6;
+  localparam LOAD_OPERATOR1 = 5;
+  localparam LOAD_OPERATOR2 = 6;
   localparam PERFORM_OPERATION = 7;
   localparam WRITE_RESULT = 8;
   localparam FSM_DONE = 9;
@@ -59,7 +56,7 @@ module Matrix_Multiplication (
       }
     }
   }
-  But twidth_at won't work in Verilog, because for loops work differently,
+  But that won't work in Verilog, because for loops work differently,
   so we've got to implement this for loop as a state machine instead.
   */
 
@@ -129,14 +126,12 @@ module Matrix_Multiplication (
           end
           else if ( addr_o < 5 ) begin
             if (mem_opdone) begin
-              if(addr_o == 1)
-                width_a <= data_i; // width A
-              if(addr_o == 2)
-                height_a <= data_i; // height A
-              if(addr_o == 3)
-                width_b <= data_i; // width B
-              if(addr_o == 4)
-                height_b <= data_i; // height B
+              case (addr_o)
+                1: width_a <= data_i; // width A
+                2: height_a <= data_i; // height A
+                3: width_b <= data_i; // width B
+                4: height_b <= data_i; // height B
+              endcase
               // Increment address
               addr_o <= addr_o + 1;
             end
@@ -167,14 +162,14 @@ module Matrix_Multiplication (
         end
         LOOP3: begin // for (int k = 0; k < width_a; k++) {
           if (k < width_a ) begin
-            state <= FETCH_A_OPERATORS;
+            state <= LOAD_OPERATOR1;
           end
           else begin
             state <= WRITE_RESULT;
             j <= j + 1;
           end
         end
-        FETCH_A_OPERATORS: begin
+        LOAD_OPERATOR1: begin
           if ( addr_o == 0 ) begin
             mem_operation <= 2'b01; // read
             addr_o <= base_addr_a+i*width_a+k; // matrixA_in[i][k]
@@ -182,12 +177,12 @@ module Matrix_Multiplication (
           else if (mem_opdone) begin
             operator1_buffer <= data_i;
             //$display("Got operator 1 %d from %x (i=%d, j=%d, k=%d)", $signed(data_i), addr_o, i, j, k);
-            state <= FETCH_B_OPERATOR;
+            state <= LOAD_OPERATOR2;
             mem_operation <= 2'b00; // done
             addr_o <= 0;
           end
         end
-        FETCH_B_OPERATOR: begin
+        LOAD_OPERATOR2: begin
           if ( addr_o == 0 ) begin
             mem_operation <= 2'b01; // read
             addr_o <= base_addr_b+k*width_b+j; // matrixB_in[k][j]

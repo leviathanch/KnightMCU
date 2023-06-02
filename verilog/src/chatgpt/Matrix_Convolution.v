@@ -78,22 +78,35 @@ module Matrix_Convolution (
   always @(posedge clk) begin
     // Assign initial values
     if (reset) begin
-      i <= 0;
-      j <= 0;
+      height_a <= 0;
+      width_a <= 0;
+      height_b <= 0;
+      width_b <= 0;
+      i <= 1;
+      j <= 1;
       k <= -1;
       l <= -1;
       data_o <= 0;
-      addr_o <= base_addr_c;
+      addr_o <= 0;;
       mem_operation <= 2'b00;
       done <= 0;
+      state <= IDLE;
+      // reset result register
+      result_buffer<= 0;
+      operator1_buffer <= 0;
+      operator2_buffer <= 0;
     end
     // State machine
     else if (enable) begin
       case (state)
         IDLE: begin
           state <= FETCH_PARAMS;
-          i <= 0;
-          j <= 0;
+          height_a <= 0;
+          width_a <= 0;
+          height_b <= 0;
+          width_b <= 0;
+          i <= 1;
+          j <= 1;
           k <= -1;
           l <= -1;
           height_a <= 0;
@@ -140,6 +153,7 @@ module Matrix_Convolution (
           end
         end
         LOOP1: begin // for (int i = 1; i < rows - 1; i++) {
+          $display("LOOP1");
           if (i < height_a - 1) begin
             state <= LOOP2;
             i <= i + 1;
@@ -149,75 +163,82 @@ module Matrix_Convolution (
           end
         end
         LOOP2: begin // for (int j = 1; j < cols - 1; j++) {
+        $display("LOOP2");
           if (j < width_a - 1) begin
             state <= LOOP3;
             j <= j + 1;
           end
           else begin
             state <= LOOP1;
-            j <= 0;
+            j <= 1;
           end
         end
         LOOP3: begin // for (int k = -1; k <= 1; k++) {
-          if (k < 2) begin
+        $display("LOOP3 %d", $signed(k));
+          if ($signed(k) < 2) begin
             state <= LOOP4;
-            k <= k + 1;
+            k <= $signed(k) + 1;
           end
           else begin
-            state <= LOAD_OPERATOR1;
+            state <= LOOP2;
             k <= -1;
           end
         end
         LOOP4: begin // for (int l = -1; l <= 1; l++) {
-          if (l < 2) begin
+        $display("LOOP4 %d", $signed(l));
+          if ($signed(l) < 2) begin
             state <= LOAD_OPERATOR1;
-            l <= l + 1;
+            l <= $signed(l) + 1;
           end
           else begin
-            state <= PERFORM_OPERATION;
+            state <= WRITE_RESULT;
             l <= -1;
           end
         end
-         LOAD_OPERATOR1: begin // A[i + k][j + l]
-          if ( addr_o == 0 ) begin
-            mem_operation <= 2'b01; // read
-            addr_o <= base_addr_a + ((i + k) * width_a) + (j + l);
-          end
-          else if (mem_opdone) begin
-            operator1_buffer <= data_i;
-            state <= LOAD_OPERATOR2;
-            mem_operation <= 2'b00; // done
-            addr_o <= 0;
-          end
+        LOAD_OPERATOR1: begin // A[i + k][j + l]
+        $display("LOAD_OPERATOR1");
+        if ( addr_o == 0 ) begin
+          mem_operation <= 2'b01; // read
+          addr_o <= base_addr_a + (($signed(i) + $signed(k)) * $signed(width_a)) + ($signed(j) + $signed(l));
+        end
+        else if (mem_opdone) begin
+          operator1_buffer <= data_i;
+          state <= LOAD_OPERATOR2;
+          mem_operation <= 2'b00; // done
+          addr_o <= 0;
+        end
         end
         LOAD_OPERATOR2: begin // F[k + 1][l + 1]
-          if ( addr_o == 0 ) begin
-            mem_operation <= 2'b01; // read
-            addr_o <= base_addr_b + ((k + 1) * width_b) + (l + 1);
-          end
-          else if (mem_opdone) begin
-            operator2_buffer <= data_i;
-            state <= PERFORM_OPERATION;
-            mem_operation <= 2'b00; // done
-            addr_o <= 0;
-          end
+        $display("LOAD_OPERATOR2");
+        if ( addr_o == 0 ) begin
+          mem_operation <= 2'b01; // read
+          addr_o <= base_addr_b + (($signed(k) + $signed(1) ) * $signed(width_b)) + ($signed(l) + $signed(1));
+        end
+        else if (mem_opdone) begin
+          operator2_buffer <= data_i;
+          state <= PERFORM_OPERATION;
+          mem_operation <= 2'b00; // done
+          addr_o <= 0;
+        end
         end
         PERFORM_OPERATION: begin
-          result_buffer <= result_buffer + operator1_buffer * operator2_buffer;
-          state <= LOOP4;
+        result_buffer <= $signed(result_buffer) + $signed(operator1_buffer) * $signed(operator2_buffer);
+        $display("%d + %d * %d\n", $signed(result_buffer), $signed(operator1_buffer), $signed(operator2_buffer));
+        state <= LOOP4;
         end
         WRITE_RESULT: begin
-          if ( addr_o == 0 ) begin
-            mem_operation <= 2'b11; // write
-            addr_o <= base_addr_c + (i * width_b) + j;
-            data_o <= result_buffer;
-          end
-          else if (mem_opdone) begin
-            result_buffer <= 0;
-            state <= LOOP2;
-            mem_operation <= 2'b00; // done
-            addr_o <= 0;
-          end
+        if ( addr_o == 0 ) begin
+          mem_operation <= 2'b11; // write
+          addr_o <= base_addr_c + ($signed(i) * width_b) + $signed(j);
+          data_o <= result_buffer;
+        end
+        else if (mem_opdone) begin
+          $display("Wrote %d to %x", $signed(data_o), addr_o);
+          result_buffer <= 0;
+          state <= LOOP2;
+          mem_operation <= 2'b00; // done
+          addr_o <= 0;
+        end
         end
         FSM_DONE: begin
           done <= 1;

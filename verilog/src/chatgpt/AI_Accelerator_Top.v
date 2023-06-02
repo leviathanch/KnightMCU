@@ -40,10 +40,8 @@ module AI_Accelerator_Top #(
   always @(posedge wb_clk_i) begin
     mem_opdone <= next_mem_opdone;
     if (wb_rst_i) begin
-      busy <= 1'b0;
-      started <= 1'b0;
-      multiplier_enable <= 1'b0;
       mmul_data_i <= 0;
+      mconv_data_i <= 0;
       mem_opdone <= 0;
       next_mem_opdone <= 0;
     end
@@ -51,7 +49,7 @@ module AI_Accelerator_Top #(
       mem_opdone <= 0;
       next_mem_opdone <= 0;
     end
-    else if (! mem_opdone )begin
+    else if (! mem_opdone ) begin
       case ( DFFRAM[0] ) // Register 1 holds the operation to be executed
         // Enable corresponding module based on operation value in operation register
         `TYPE_BW'h1: begin // matrix multiplication
@@ -63,6 +61,19 @@ module AI_Accelerator_Top #(
             2'b11: begin // Write
               DFFRAM[mmul_addr_o] <= mmul_data_o;
               mmul_data_i <= 0;
+              next_mem_opdone <= 1;
+            end
+          endcase
+        end
+        `TYPE_BW'h2: begin // matrix convolution
+          case (mconv_mem_op)
+            2'b01: begin // Read
+              mconv_data_i <= DFFRAM[mconv_addr_o];
+              next_mem_opdone <= 1;
+            end
+            2'b11: begin // Write
+              DFFRAM[mconv_addr_o] <= mconv_data_o;
+              mconv_data_i <= 0;
               next_mem_opdone <= 1;
             end
           endcase
@@ -95,6 +106,25 @@ module AI_Accelerator_Top #(
   wire [31:0] mmul_addr_o;
   wire [1:0] mmul_mem_op; // Read 01 /Write 11 /None 00
 
+  // Matrix Convolution
+  Matrix_Convolution matrix_conv (
+    .clk(wb_clk_i),
+    .reset(wb_rst_i),
+    .enable(convolution_enable),
+    .done(matrix_conv_done),
+    .addr_o(mconv_addr_o),
+    .data_i(mconv_data_i),
+    .data_o(mconv_data_o),
+    .mem_opdone(mem_opdone),
+    .mem_operation(mconv_mem_op)
+  );
+  reg convolution_enable; // on switch
+  wire matrix_conv_done; // status wire
+  reg [`TYPE_BW-1:0] mconv_data_i;
+  wire [`TYPE_BW-1:0] mconv_data_o;
+  wire [31:0] mconv_addr_o;
+  wire [1:0] mconv_mem_op; // Read 01 /Write 11 /None 00
+  
   /*
     Control Unit
     Manages the current operation and changes the value
@@ -107,6 +137,7 @@ module AI_Accelerator_Top #(
       busy <= 1'b0;
       started <= 1'b0;
       multiplier_enable <= 1'b0;
+      convolution_enable <= 1'b0;
     end
     else if ( started ) begin
       started <= 1'b0;
@@ -123,6 +154,18 @@ module AI_Accelerator_Top #(
           else if ( DFFRAM[5] == `TYPE_BW'hffff_ffff ) begin
             busy <= 1'b1; // indicate that we started operation
             multiplier_enable <= 1'b1; // Enable matrix multiplication module
+            started <= 1'b1;
+          end
+        end
+        `TYPE_BW'h2: begin // matrix convolution
+          if( matrix_conv_done && busy ) begin
+            busy <= 1'b0;
+            convolution_enable <= 1'b0; // Enable matrix multiplication module
+            DFFRAM[5] <= `TYPE_BW'h0; // Done
+          end
+          else if ( DFFRAM[5] == `TYPE_BW'hffff_ffff ) begin
+            busy <= 1'b1; // indicate that we started operation
+            convolution_enable <= 1'b1; // Enable matrix multiplication module
             started <= 1'b1;
           end
         end

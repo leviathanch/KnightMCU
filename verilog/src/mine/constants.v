@@ -4,16 +4,12 @@
 // Global parameters
 `define __KOIP_DEFINE_H
 
-
-// (32-10)/2-1 = 22/2-1 = 11-1 = 10
-`define SEQ_BITS 10
+//`define MEM_SIZE (1<<8)
 //`define MEM_SIZE (1<<7) // 128*4 = 256 bytes
 //`define MEM_SIZE (1<<6) // 64*4 = 256 bytes
-//`define MEM_SIZE (1<<5) // 32*4 = 128 bytes
-
-`define MEM_SIZE (1<<8) // 16*4 = 64 bytes
+`define MEM_SIZE (1<<5) // 32*4 = 128 bytes
 //`define MEM_SIZE (1<<4) // 16*4 = 64 bytes
-`define PARALLEL_MULT_JOBS 1
+
 /*
 Input memory contains registers 1-6
 0: operation code to perform

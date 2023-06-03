@@ -73,10 +73,22 @@ module Matrix_Convolution (
   But that won't work in Verilog, because for loops work differently,
   so we've got to implement this for loop as a state machine instead.
   */
+  reg last_enable;
   reg enable_edge;
-  always @(posedge enable) begin
-    enable_edge <= 1;
+  always @(posedge clk) begin
+    if (reset) begin
+      enable_edge <= 0;
+      last_enable <= 0;
+    end
+    else if ( !last_enable && enable ) begin
+      enable_edge <= 1;
+      last_enable <= 0;
+    end
+    else begin
+      last_enable <= enable;
+    end
   end
+
   always @(posedge clk) begin
     // Assign initial values
     if (reset) begin

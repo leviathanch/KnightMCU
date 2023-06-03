@@ -64,10 +64,22 @@ module Matrix_Multiplication (
   */
 
   // Assign initial state
+  reg last_enable;
   reg enable_edge;
-  always @(posedge enable) begin
-    enable_edge <= 1;
+  always @(posedge clk) begin
+    if (reset) begin
+      enable_edge <= 0;
+      last_enable <= 0;
+    end
+    else if ( !last_enable && enable ) begin
+      enable_edge <= 1;
+      last_enable <= 0;
+    end
+    else begin
+      last_enable <= enable;
+    end
   end
+
   always @(posedge clk or posedge enable) begin
     if (reset) begin
       // reset dimensions

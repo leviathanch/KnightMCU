@@ -23,7 +23,7 @@ module AI_Accelerator_Top #(
 
   // IOs
   input wire [15:0] io_in,
-  output wire [15:0] io_out,
+  output wire [15:0] io_out, // Debug LEDs pin [15:8]
   output wire [15:0] io_oeb
 );
   

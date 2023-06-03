@@ -38,11 +38,11 @@ module AI_Accelerator_Top #(
   reg [31:0] status;
   reg [3:0] sram_we;
   reg sram_en;
-  reg [`KICP_SRAM_COLS+1:0] sram_addr;
+  reg [`KICP_SRAM_AWIDTH-1:0] sram_addr;
   reg [31:0] sram_data_i;
   wire [31:0] sram_data_o;
 
-  RAM256 #(`KICP_SRAM_COLS) sram (
+  RAM256 sram (
 `ifdef USE_POWER_PINS
     .VPWR(vccd1),
     .VGND(vccd1),
@@ -98,13 +98,13 @@ module AI_Accelerator_Top #(
           case (mmul_mem_op)
             2'b01: begin // Read
               sram_en <= 1;
-              sram_addr <= mmul_addr_o[`KICP_SRAM_COLS+1:0];
+              sram_addr <= mmul_addr_o[`KICP_SRAM_AWIDTH-1:0];
               mem_read_wait <= 1;
             end
             2'b11: begin // Write
               sram_we <= 4'b1111;
               sram_en <= 1;
-              sram_addr <= mmul_addr_o[`KICP_SRAM_COLS+1:0];
+              sram_addr <= mmul_addr_o[`KICP_SRAM_AWIDTH-1:0];
               sram_data_i <= mmul_data_o;
               mem_write_wait <= 1;
             end
@@ -114,13 +114,13 @@ module AI_Accelerator_Top #(
           case (mconv_mem_op)
             2'b01: begin // Read
               sram_en <= 1;
-              sram_addr <= mconv_addr_o[`KICP_SRAM_COLS+1:0];
+              sram_addr <= mconv_addr_o[`KICP_SRAM_AWIDTH-1:0];
               mem_read_wait <= 1;
             end
             2'b11: begin // Write
               sram_we <= 4'b1111;
               sram_en <= 1;
-              sram_addr <= mconv_addr_o[`KICP_SRAM_COLS+1:0];
+              sram_addr <= mconv_addr_o[`KICP_SRAM_AWIDTH-1:0];
               sram_data_i <= mconv_data_o;
               mem_write_wait <= 1;
             end
@@ -281,7 +281,7 @@ module AI_Accelerator_Top #(
               else begin
                 read_wait_cycle <= 1;
                 sram_en <= 1;
-                sram_addr <= wb_addr_i[`KICP_SRAM_COLS+1:0]/4-2;
+                sram_addr <= wb_addr_i[`KICP_SRAM_AWIDTH+1:0]/4-2;
               end
               wb_state <= 2'b10; // Read state
             end
@@ -306,7 +306,7 @@ module AI_Accelerator_Top #(
               sram_we <= 4'b1111;
               sram_en <= 1;
               write_wait_cycle <= 1;
-              sram_addr <= wb_addr_i[`KICP_SRAM_COLS+1:0]/4-2;
+              sram_addr <= wb_addr_i[`KICP_SRAM_AWIDTH+1:0]/4-2;
               sram_data_i <= wb_data_i; //[`TYPE_BW-1:0];
             end
             wb_ack <= 1'b1;

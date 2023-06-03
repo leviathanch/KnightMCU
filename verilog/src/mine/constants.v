@@ -4,7 +4,7 @@
 // Global parameters
 `define __KOIP_DEFINE_H
 
-`define KICP_SRAM_COLS 10
+`define KICP_SRAM_AWIDTH 8
 
 /*
 Input memory contains registers 1-6

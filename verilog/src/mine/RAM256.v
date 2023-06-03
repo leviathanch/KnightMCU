@@ -12,9 +12,10 @@ module RAM256 #( parameter COLS=1)
     A0
 );
     localparam A_WIDTH = 8+$clog2(COLS);
-
+`ifdef USE_POWER_PINS
     input   wire            VPWR;
     input   wire            VGND;
+`endif
     input   wire            CLK;
     input   wire    [3:0]   WE0;
     input   wire            EN0;

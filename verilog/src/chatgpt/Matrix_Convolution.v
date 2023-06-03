@@ -74,21 +74,6 @@ module Matrix_Convolution (
   so we've got to implement this for loop as a state machine instead.
   */
   reg last_enable;
-  reg enable_edge;
-  always @(posedge clk) begin
-    if (reset) begin
-      enable_edge <= 0;
-      last_enable <= 0;
-    end
-    else if ( !last_enable && enable ) begin
-      enable_edge <= 1;
-      last_enable <= 0;
-    end
-    else begin
-      last_enable <= enable;
-    end
-  end
-
   always @(posedge clk) begin
     // Assign initial values
     if (reset) begin
@@ -109,7 +94,7 @@ module Matrix_Convolution (
       result_buffer<= 0;
       operator1_buffer <= 0;
       operator2_buffer <= 0;
-      enable_edge <= 0;
+      last_enable <= 0;
     end
     // State machine
     else begin
@@ -136,7 +121,7 @@ module Matrix_Convolution (
           result_buffer<= 0;
           operator1_buffer <= 0;
           operator2_buffer <= 0;
-          enable_edge <= 0;
+          last_enable <= 0;
         end
         FETCH_PARAMS: begin
           /* Operation registers:
@@ -257,8 +242,13 @@ module Matrix_Convolution (
         /* Done state */
         FSM_DONE: begin
           done <= 1;
-          // Turning the thing on
-          if (enable_edge) state <= START;
+          if ( !last_enable && enable ) begin
+            // Turning the thing on
+            state <= START;
+          end
+          else begin
+            last_enable <= enable;
+          end
         end
       endcase
     end

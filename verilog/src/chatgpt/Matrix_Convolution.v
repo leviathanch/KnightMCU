@@ -1,4 +1,8 @@
 module Matrix_Convolution (
+`ifdef USE_POWER_PINS
+    inout vccd1,	// User area 1 1.8V supply
+    inout vssd1,	// User area 1 digital ground
+`endif
   input wire         clk,
   input wire         reset,
   input wire         enable,
@@ -28,7 +32,7 @@ module Matrix_Convolution (
   wire [31:0] base_addr_filter;
   wire [31:0] base_addr_result;
 
-  assign base_addr_a = 32'h0000_0006; // 6 parameters
+  assign base_addr_a = 32'h0000_0004; // 4 parameters
   assign base_addr_filter = base_addr_a + height_matrix*width_matrix;
   assign base_addr_result = base_addr_filter + height_matrix*width_matrix + height_filter*width_filter;
 
@@ -98,10 +102,10 @@ module Matrix_Convolution (
       operator2_buffer <= 0;
     end
     // State machine
-    else if (enable) begin
+    else begin
       case (state)
         IDLE: begin
-          state <= FETCH_PARAMS;
+          if (enable) state <= FETCH_PARAMS;
           height_matrix <= 0;
           width_matrix <= 0;
           height_filter <= 0;
@@ -125,23 +129,23 @@ module Matrix_Convolution (
         end
         FETCH_PARAMS: begin
           /* Operation registers:
-             1: width A
-             2: height A
-             3: width B
-             4: height B
+             0: width A
+             1: height A
+             2: width B
+             3: height B
           */
           // values for calculating base addresses
-          if ( addr_o == 0 ) begin
+          if ( addr_o == 0 && mem_operation != 2'b01 ) begin
             mem_operation <= 2'b01; // read
-            addr_o <= 1;
+            addr_o <= 0;
           end
           else if ( addr_o < 5 ) begin
             if (mem_opdone) begin
               case (addr_o)
-                1: width_matrix <= data_i; // width A
-                2: height_matrix <= data_i; // height A
-                3: width_filter <= data_i; // width B
-                4: height_filter <= data_i; // height B
+                0: width_matrix <= data_i; // width A
+                1: height_matrix <= data_i; // height A
+                2: width_filter <= data_i; // width B
+                3: height_filter <= data_i; // height B
               endcase
               // Increment address
               addr_o <= addr_o + 1;

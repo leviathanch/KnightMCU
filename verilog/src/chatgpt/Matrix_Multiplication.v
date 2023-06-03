@@ -1,4 +1,8 @@
 module Matrix_Multiplication (
+`ifdef USE_POWER_PINS
+    inout vccd1,	// User area 1 1.8V supply
+    inout vssd1,	// User area 1 digital ground
+`endif
   input wire         clk,
   input wire         reset,
   input wire         enable,
@@ -25,7 +29,7 @@ module Matrix_Multiplication (
   wire [31:0] base_addr_b;
   wire [31:0] base_addr_c;
 
-  assign base_addr_a = 32'h0000_0006; // 6 parameters
+  assign base_addr_a = 32'h0000_0004; // 4 parameters
   assign base_addr_b = base_addr_a + height_a*width_a;
   assign base_addr_c = base_addr_b + height_a*width_a + height_b*width_b;
 
@@ -86,11 +90,11 @@ module Matrix_Multiplication (
       operator1_buffer <= 0;
       operator2_buffer <= 0;
     end
-    else if (enable) begin
+    else begin
       case (state)
         IDLE: begin
+          if (enable) state <= FETCH_PARAMS;
           // Reset indices and result register
-          state <= FETCH_PARAMS;
           i <= 0;
           j <= 0;
           k <= 0;
@@ -109,25 +113,23 @@ module Matrix_Multiplication (
         end
         FETCH_PARAMS: begin
           /* Operation registers:
-             0: operation
-             1: width A
-             2: height A
-             3: width B
-             4: height B
-             5: done writing values, go!
+             0: width A
+             1: height A
+             2: width B
+             3: height B
           */
           // values for calculating base addresses
-          if ( addr_o == 0 ) begin
+          if ( addr_o == 0 && mem_operation != 2'b01 ) begin
             mem_operation <= 2'b01; // read
-            addr_o <= 1;
+            addr_o <= 0;
           end
           else if ( addr_o < 5 ) begin
             if (mem_opdone) begin
               case (addr_o)
-                1: width_a <= data_i; // width A
-                2: height_a <= data_i; // height A
-                3: width_b <= data_i; // width B
-                4: height_b <= data_i; // height B
+                0: width_a <= data_i; // width A
+                1: height_a <= data_i; // height A
+                2: width_b <= data_i; // width B
+                3: height_b <= data_i; // height B
               endcase
               // Increment address
               addr_o <= addr_o + 1;

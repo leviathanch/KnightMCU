@@ -73,8 +73,11 @@ module Matrix_Convolution (
   But that won't work in Verilog, because for loops work differently,
   so we've got to implement this for loop as a state machine instead.
   */
-  
-  always @(posedge clk or posedge enable) begin
+  reg enable_edge;
+  always @(posedge enable) begin
+    enable_edge <= 1;
+  end
+  always @(posedge clk) begin
     // Assign initial values
     if (reset) begin
       height_matrix <= 0;
@@ -94,6 +97,7 @@ module Matrix_Convolution (
       result_buffer<= 0;
       operator1_buffer <= 0;
       operator2_buffer <= 0;
+      enable_edge <= 0;
     end
     // State machine
     else begin
@@ -120,6 +124,7 @@ module Matrix_Convolution (
           result_buffer<= 0;
           operator1_buffer <= 0;
           operator2_buffer <= 0;
+          enable_edge <= 0;
         end
         FETCH_PARAMS: begin
           /* Operation registers:
@@ -241,7 +246,7 @@ module Matrix_Convolution (
         FSM_DONE: begin
           done <= 1;
           // Turning the thing on
-          if (enable) state <= START;
+          if (enable_edge) state <= START;
         end
       endcase
     end

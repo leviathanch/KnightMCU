@@ -64,6 +64,10 @@ module Matrix_Multiplication (
   */
 
   // Assign initial state
+  reg enable_edge;
+  always @(posedge enable) begin
+    enable_edge <= 1;
+  end
   always @(posedge clk or posedge enable) begin
     if (reset) begin
       // reset dimensions
@@ -84,6 +88,7 @@ module Matrix_Multiplication (
       result_buffer<= 0;
       operator1_buffer <= 0;
       operator2_buffer <= 0;
+      enable_edge <= 0;
     end
     else begin
       case (state)
@@ -105,6 +110,7 @@ module Matrix_Multiplication (
           result_buffer<= 0;
           operator1_buffer <= 0;
           operator2_buffer <= 0;
+          enable_edge <= 0;
         end
         FETCH_PARAMS: begin
           /* Operation registers:
@@ -209,7 +215,7 @@ module Matrix_Multiplication (
         FSM_DONE: begin
           done <= 1;
           // Turning the thing on
-          if (enable) state <= START;
+          if (enable_edge) state <= START;
         end
       endcase
     end

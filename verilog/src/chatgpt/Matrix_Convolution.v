@@ -53,6 +53,7 @@ module Matrix_Convolution (
   localparam PERFORM_OPERATION = 8;
   localparam WRITE_RESULT = 9;
   localparam FSM_DONE = 10;
+  localparam IDLE = 11;
 
   /* In C we would do two loops like this:
     // Convolution operation
@@ -73,7 +74,6 @@ module Matrix_Convolution (
   But that won't work in Verilog, because for loops work differently,
   so we've got to implement this for loop as a state machine instead.
   */
-  reg last_enable;
   always @(posedge clk) begin
     // Assign initial values
     if (reset) begin
@@ -89,12 +89,11 @@ module Matrix_Convolution (
       addr_o <= 0;;
       mem_operation <= 2'b00;
       done <= 0;
-      state <= FSM_DONE;
+      state <= IDLE;
       // reset result register
       result_buffer<= 0;
       operator1_buffer <= 0;
       operator2_buffer <= 0;
-      last_enable <= 0;
     end
     // State machine
     else begin
@@ -121,7 +120,6 @@ module Matrix_Convolution (
           result_buffer<= 0;
           operator1_buffer <= 0;
           operator2_buffer <= 0;
-          last_enable <= 0;
         end
         FETCH_PARAMS: begin
           /* Operation registers:
@@ -242,11 +240,13 @@ module Matrix_Convolution (
         /* Done state */
         FSM_DONE: begin
           done <= 1;
-          if ( enable ) begin
-            if ( !last_enable ) state <= START; // Turning the thing on
+          if ( !enable ) begin
+            state <= IDLE; // Go to IDLE
           end
-          else begin
-            last_enable <= enable;
+        end
+        IDLE: begin
+          if ( enable ) begin
+            state <= START; // Turning the thing on
           end
         end
       endcase

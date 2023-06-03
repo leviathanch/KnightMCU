@@ -49,6 +49,7 @@ module Matrix_Multiplication (
   localparam PERFORM_OPERATION = 7;
   localparam WRITE_RESULT = 8;
   localparam FSM_DONE = 9;
+  localparam IDLE = 10;
 
   /* In C we would do two loops like this:
   for (int i = 0; i < height_a; i++) {
@@ -64,7 +65,6 @@ module Matrix_Multiplication (
   */
 
   // Assign initial state
-  reg last_enable;
   always @(posedge clk or posedge enable) begin
     if (reset) begin
       // reset dimensions
@@ -76,7 +76,7 @@ module Matrix_Multiplication (
       addr_o <= 0;
       data_o <= 0;
       // reset FSM
-      state <= FSM_DONE;
+      state <= IDLE;
       i <= 0;
       j <= 0;
       k <= 0;
@@ -85,7 +85,6 @@ module Matrix_Multiplication (
       result_buffer<= 0;
       operator1_buffer <= 0;
       operator2_buffer <= 0;
-      last_enable <= 0;
     end
     else begin
       case (state)
@@ -107,7 +106,6 @@ module Matrix_Multiplication (
           result_buffer<= 0;
           operator1_buffer <= 0;
           operator2_buffer <= 0;
-          last_enable <= 0;
         end
         FETCH_PARAMS: begin
           /* Operation registers:
@@ -209,13 +207,17 @@ module Matrix_Multiplication (
           end
           k <= 0;
         end
+        /* Done state */
+        /* Done state */
         FSM_DONE: begin
           done <= 1;
-          if ( enable ) begin
-            if ( !last_enable ) state <= START; // Turning the thing on
+          if ( !enable ) begin
+            state <= IDLE; // Go to IDLE
           end
-          else begin
-            last_enable <= enable;
+        end
+        IDLE: begin
+          if ( enable ) begin
+            state <= START; // Turning the thing on
           end
         end
       endcase

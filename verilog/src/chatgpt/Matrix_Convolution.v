@@ -91,7 +91,7 @@ module Matrix_Convolution (
       done <= 0;
       state <= IDLE;
       // reset result register
-      result_buffer<= 0;
+      result_buffer <= 0;
       operator1_buffer <= 0;
       operator2_buffer <= 0;
     end
@@ -99,7 +99,7 @@ module Matrix_Convolution (
     else begin
       case (state)
         START: begin
-          if (enable) state <= FETCH_PARAMS;
+          state <= FETCH_PARAMS;
           height_matrix <= 0;
           width_matrix <= 0;
           height_filter <= 0;

@@ -65,8 +65,9 @@ module Matrix_Multiplication (
   */
 
   // Assign initial state
-  always @(posedge clk or posedge enable) begin
+  always @(posedge clk) begin
     if (reset) begin
+      state <= IDLE;
       // reset dimensions
       height_a <= 0;
       width_a <= 0;
@@ -76,7 +77,6 @@ module Matrix_Multiplication (
       addr_o <= 0;
       data_o <= 0;
       // reset FSM
-      state <= IDLE;
       i <= 0;
       j <= 0;
       k <= 0;
@@ -89,7 +89,7 @@ module Matrix_Multiplication (
     else begin
       case (state)
         START: begin
-          if (enable) state <= FETCH_PARAMS;
+          state <= FETCH_PARAMS;
           // Reset indices and result register
           i <= 0;
           j <= 0;

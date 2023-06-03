@@ -39,7 +39,7 @@ module Matrix_Multiplication (
   reg [31:0] operator2_buffer;
 
   // State definition
-  localparam IDLE = 0;
+  localparam START = 0;
   localparam FETCH_PARAMS = 1;
   localparam LOOP1 = 2;
   localparam LOOP2 = 3;
@@ -63,13 +63,8 @@ module Matrix_Multiplication (
   so we've got to implement this for loop as a state machine instead.
   */
 
-  // Turning the thing on
-  always @(posedge enable) begin
-    state <= IDLE;
-  end
-
   // Assign initial state
-  always @(posedge clk) begin
+  always @(posedge clk or posedge enable) begin
     if (reset) begin
       // reset dimensions
       height_a <= 0;
@@ -80,7 +75,7 @@ module Matrix_Multiplication (
       addr_o <= 0;
       data_o <= 0;
       // reset FSM
-      state <= IDLE;
+      state <= FSM_DONE;
       i <= 0;
       j <= 0;
       k <= 0;
@@ -92,7 +87,7 @@ module Matrix_Multiplication (
     end
     else begin
       case (state)
-        IDLE: begin
+        START: begin
           if (enable) state <= FETCH_PARAMS;
           // Reset indices and result register
           i <= 0;
@@ -213,6 +208,8 @@ module Matrix_Multiplication (
         end
         FSM_DONE: begin
           done <= 1;
+          // Turning the thing on
+          if (enable) state <= START;
         end
       endcase
     end

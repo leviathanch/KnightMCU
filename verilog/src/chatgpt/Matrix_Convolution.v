@@ -42,7 +42,7 @@ module Matrix_Convolution (
   reg [31:0] operator2_buffer;
 
   // State definition
-  localparam IDLE = 0;
+  localparam START = 0;
   localparam FETCH_PARAMS = 1;
   localparam LOOP1 = 2;
   localparam LOOP2 = 3;
@@ -74,13 +74,7 @@ module Matrix_Convolution (
   so we've got to implement this for loop as a state machine instead.
   */
   
-  // Turning the thing on
-  // Turning the thing on
-  always @(posedge enable) begin
-    state <= IDLE;
-  end
-
-  always @(posedge clk) begin
+  always @(posedge clk or posedge enable) begin
     // Assign initial values
     if (reset) begin
       height_matrix <= 0;
@@ -95,7 +89,7 @@ module Matrix_Convolution (
       addr_o <= 0;;
       mem_operation <= 2'b00;
       done <= 0;
-      state <= IDLE;
+      state <= FSM_DONE;
       // reset result register
       result_buffer<= 0;
       operator1_buffer <= 0;
@@ -104,7 +98,7 @@ module Matrix_Convolution (
     // State machine
     else begin
       case (state)
-        IDLE: begin
+        START: begin
           if (enable) state <= FETCH_PARAMS;
           height_matrix <= 0;
           width_matrix <= 0;
@@ -246,6 +240,8 @@ module Matrix_Convolution (
         /* Done state */
         FSM_DONE: begin
           done <= 1;
+          // Turning the thing on
+          if (enable) state <= START;
         end
       endcase
     end

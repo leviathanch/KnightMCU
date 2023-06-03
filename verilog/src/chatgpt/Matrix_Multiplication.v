@@ -211,9 +211,8 @@ module Matrix_Multiplication (
         end
         FSM_DONE: begin
           done <= 1;
-          if ( !last_enable && enable ) begin
-            // Turning the thing on
-            state <= START;
+          if ( enable ) begin
+            if ( !last_enable ) state <= START; // Turning the thing on
           end
           else begin
             last_enable <= enable;

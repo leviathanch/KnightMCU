@@ -216,6 +216,7 @@ module Matrix_Multiplication (
           end
         end
         IDLE: begin
+          done <= 0;
           if ( enable ) begin
             state <= START; // Turning the thing on
           end

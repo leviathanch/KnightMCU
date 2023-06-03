@@ -14,7 +14,17 @@ module AI_Accelerator_Top #(
   input wire [31:0]  wb_addr_i,
   input wire [31:0]  wb_data_i,
   output reg         wb_ack, // the readyness signal
-  output reg [31:0]  wb_data_o
+  output reg [31:0]  wb_data_o,
+
+  // Logic Analyzer Signals
+  input  wire [127:0] la_data_in,
+  output wire [127:0] la_data_out,
+  input  wire [127:0] la_oenb,
+
+  // IOs
+  input wire [15:0] io_in,
+  output wire [15:0] io_out,
+  output wire [15:0] io_oeb
 );
   
   // Parallelism

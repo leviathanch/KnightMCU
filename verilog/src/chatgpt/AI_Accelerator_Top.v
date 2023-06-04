@@ -68,8 +68,6 @@ module AI_Accelerator_Top #(
       mem_opdone <= 0;
       sram_we <= 4'b0000;
       sram_en <= 0;
-      operation <= 0;
-      status <= 0;
       mem_write_wait <= 0;
       mem_read_wait <= 0;
       sram_we <= 4'b0000;
@@ -286,6 +284,8 @@ module AI_Accelerator_Top #(
       wbctrl_mem_data <= 32'b0;
       wbctrl_addr_buf <= 32'b0;
       wbctrl_data_buf <= 32'b0;
+      status <= 0;
+      operation <= 0;
     end
     else if (finished) begin
       status <= 0;

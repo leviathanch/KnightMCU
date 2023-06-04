@@ -31,7 +31,7 @@ module Matrix_Multiplication (
 
   assign base_addr_a = 32'h0000_0004; // 4 parameters
   assign base_addr_b = base_addr_a + height_a*width_a;
-  assign base_addr_c = base_addr_b + height_a*width_a + height_b*width_b;
+  assign base_addr_c = base_addr_b + height_b*width_b;
 
   // Buffers
   reg [31:0] result_buffer;
@@ -161,7 +161,6 @@ module Matrix_Multiplication (
           end
           else begin
             state <= WRITE_RESULT;
-            j <= j + 1;
           end
         end
         LOAD_OPERATOR1: begin
@@ -199,6 +198,7 @@ module Matrix_Multiplication (
             addr_o <= base_addr_c+i*width_b+j;
             data_o <= result_buffer;
             result_buffer <= 0;
+            j <= j + 1;
           end
           else if (mem_opdone) begin
             state <= LOOP2;

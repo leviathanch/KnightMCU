@@ -34,7 +34,7 @@ module Matrix_Convolution (
 
   assign base_addr_a = 32'h0000_0004; // 4 parameters
   assign base_addr_filter = base_addr_a + height_matrix*width_matrix;
-  assign base_addr_result = base_addr_filter + height_matrix*width_matrix + height_filter*width_filter;
+  assign base_addr_result = base_addr_filter + height_filter*width_filter;
 
   // Buffers
   reg [31:0] result_buffer;

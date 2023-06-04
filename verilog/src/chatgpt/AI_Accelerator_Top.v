@@ -17,21 +17,27 @@ module AI_Accelerator_Top #(
   output reg [31:0]  wb_data_o,
 
   // Logic Analyzer Signals
-  input  wire [127:0] la_data_in,
-  output wire [127:0] la_data_out,
-  input  wire [127:0] la_oenb,
+  input  [127:0] la_data_in,
+  output [127:0] la_data_out, // Debug LEDs pin [15:8]
+  input  [127:0] la_oenb,
 
   // IOs
-  input wire [15:0] io_in,
-  output wire [15:0] io_out, // Debug LEDs pin [15:8]
-  output wire [15:0] io_oeb
+  input  [15:0] io_in,
+  output [15:0] io_out,
+  output [15:0] io_oeb,
+
+  // IRQ
+  output [2:0] irq
 );
   // Logic Analyzer
   wire rst;
   assign la_data_out = {{(127-64){1'b0}}, sram_data_i, sram_data_o};
   assign rst = (~la_oenb[65]) ? la_data_in[65]: wb_rst_i;
 
- // IO
+  // IRQ
+  assign irq = 3'b000;	// Unused
+
+  // IO
   assign io_out = {operation[1:0],{(15-2){1'b0}}};
   assign io_oeb = {(15){rst}};
 

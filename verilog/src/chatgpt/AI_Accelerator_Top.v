@@ -98,6 +98,7 @@ module AI_Accelerator_Top #(
           sram_en <= 1;
           sram_addr <= wbctrl_mem_addr;
           mem_read_wait <= 1;
+          //$display("WB reading %x", wbctrl_mem_addr);
       end
       else if ( wbctrl_mem_op == 2'b11 ) begin // Write
           sram_we <= 4'b1111;
@@ -105,6 +106,7 @@ module AI_Accelerator_Top #(
           sram_addr <= wbctrl_mem_addr;
           sram_data_i <= wbctrl_mem_data;
           mem_write_wait <= 1;
+          //$display("WB writing %x", wbctrl_mem_addr);
       end
       else begin
         case ( operation ) // Register 1 holds the operation to be executed
@@ -122,6 +124,7 @@ module AI_Accelerator_Top #(
                 sram_addr <= mmul_addr_o[`KICP_SRAM_AWIDTH-1:0];
                 sram_data_i <= mmul_data_o;
                 mem_write_wait <= 1;
+                //$display("Got result %d for address %x", $signed(mmul_data_o), mmul_addr_o);
               end
             endcase
           end
@@ -138,6 +141,7 @@ module AI_Accelerator_Top #(
                 sram_addr <= mconv_addr_o[`KICP_SRAM_AWIDTH-1:0];
                 sram_data_i <= mconv_data_o;
                 mem_write_wait <= 1;
+                //$display("Got result %d for address %x", $signed(mconv_data_o), mconv_addr_o);
               end
             endcase
           end
@@ -293,10 +297,6 @@ module AI_Accelerator_Top #(
           if (wb_cyc_i && wb_stb && !wb_ack) begin
             wbctrl_addr_buf <= wb_addr_i;
             wbctrl_data_buf <= wb_data_i;
-            if( (wb_addr_i-ADDR_OFFSET) > 4)
-              wbctrl_mem_addr <= wb_addr_i[`KICP_SRAM_AWIDTH-1:0]/4-2;
-            else
-              wbctrl_mem_addr <= 0;
             wb_data_o <= 32'h0000_0000;
             if (wb_we_i) begin // Writing requested
               wb_state <= WRITE; // Write state
@@ -310,30 +310,35 @@ module AI_Accelerator_Top #(
           if( (wbctrl_addr_buf-ADDR_OFFSET) == 0) begin
             wb_data_o <= operation;
             wb_state <= READ_DONE; // Read done
+            wbctrl_mem_addr <= 0;
           end
           else if( (wbctrl_addr_buf-ADDR_OFFSET) == 4 ) begin
             wb_data_o <= status;
             wb_state <= READ_DONE; // Read done
+            wbctrl_mem_addr <= 0;
           end
           else begin
             wbctrl_mem_op <= 2'b01;
+            wbctrl_mem_addr <= (wbctrl_addr_buf-ADDR_OFFSET)/4-2;
             wb_state <= WAIT_READ_DONE; // Read state
           end
         end
         WRITE: begin // Write state
           // increments of 1 become 4 because 32 int32_t = 4 bytes:
-          //$display("Writing %d to %x (%x)", $signed(wbctrl_data_buf), (wbctrl_addr_buf-ADDR_OFFSET), wbctrl_addr_buf);
           if( (wbctrl_addr_buf-ADDR_OFFSET) == 0 ) begin
             operation <= wbctrl_data_buf;
             wb_state <= WRITE_DONE; // Write done
+            wbctrl_mem_addr <= 0;
           end
           else if( (wbctrl_addr_buf-ADDR_OFFSET) == 4 ) begin
             status <= wbctrl_data_buf;
             wb_state <= WRITE_DONE; // Write done
+            wbctrl_mem_addr <= 0;
           end
           else begin
             wbctrl_mem_op <= 2'b11;
             wbctrl_mem_data <= wbctrl_data_buf;
+            wbctrl_mem_addr <= (wbctrl_addr_buf-ADDR_OFFSET)/4-2;
             wb_state <= WAIT_WRITE_DONE; // Wait for write finished
           end
         end
@@ -345,6 +350,7 @@ module AI_Accelerator_Top #(
           end
         end
         READ_DONE: begin // Read done
+          //$display("Read %d from %x (%x)", $signed(wb_data_o), wbctrl_mem_addr, wbctrl_addr_buf);
           wb_ack <= 1'b1;
           wb_state <= IDLE; // Return to Idle stat
         end
@@ -355,6 +361,7 @@ module AI_Accelerator_Top #(
           end
         end
         WRITE_DONE: begin // Wait write for done
+          //$display("Wrote %d to %x (%x)", $signed(wbctrl_data_buf), wbctrl_mem_addr, wbctrl_addr_buf);
           wb_ack <= 1'b1;
           wb_state <= IDLE; // Return to Idle state
         end

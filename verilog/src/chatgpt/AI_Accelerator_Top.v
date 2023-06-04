@@ -7,14 +7,14 @@ module AI_Accelerator_Top #(
 `endif
   input wire         wb_clk_i,
   input wire         wb_rst_i,
-  input wire         wb_stb, // the strobe signal
-  input wire         wb_cyc_i,
-  input wire         wb_we_i,
+  input wire         wbs_stb_i, // the strobe signal
+  input wire         wbs_cyc_i,
+  input wire         wbs_we_i,
   input wire [3:0]   wbs_sel_i,
-  input wire [31:0]  wb_addr_i,
-  input wire [31:0]  wb_data_i,
-  output reg         wb_ack, // the readyness signal
-  output reg [31:0]  wb_data_o,
+  input wire [31:0]  wbs_adr_i,
+  input wire [31:0]  wbs_dat_i,
+  output reg         wbs_ack_o, // the readyness signal
+  output reg [31:0]  wbs_dat_o,
 
   // Logic Analyzer Signals
   input  [127:0] la_data_in,
@@ -68,7 +68,7 @@ module AI_Accelerator_Top #(
     .Do0(sram_data_o),
     .A0(sram_addr)
   );
-  
+
   /*
     Memory controller
   */
@@ -291,8 +291,8 @@ module AI_Accelerator_Top #(
   always @(posedge wb_clk_i) begin
     if (wb_rst_i) begin
       wb_state <= IDLE;
-      wb_ack <= 1'b0;
-      wb_data_o <= 32'b0;
+      wbs_ack_o <= 1'b0;
+      wbs_dat_o <= 32'b0;
       wbctrl_mem_op <= 2'b00;
       wbctrl_mem_addr <= 32'b0;
       wbctrl_mem_data <= 32'b0;
@@ -307,12 +307,12 @@ module AI_Accelerator_Top #(
     else begin
       case (wb_state)
         IDLE: begin // Idle state
-          wb_ack <= 1'b0;
-          if (wb_cyc_i && wb_stb && !wb_ack) begin
-            wbctrl_addr_buf <= wb_addr_i;
-            wbctrl_data_buf <= wb_data_i;
-            wb_data_o <= 32'h0000_0000;
-            if (wb_we_i) begin // Writing requested
+          wbs_ack_o <= 1'b0;
+          if (wbs_cyc_i && wbs_stb_i && !wbs_ack_o) begin
+            wbctrl_addr_buf <= wbs_adr_i;
+            wbctrl_data_buf <= wbs_dat_i;
+            wbs_dat_o <= 32'h0000_0000;
+            if (wbs_we_i) begin // Writing requested
               wb_state <= WRITE; // Write state
             end else begin // Reading requested
               wb_state <= READ; // Read state
@@ -322,12 +322,12 @@ module AI_Accelerator_Top #(
         READ: begin // Read state
           // increments of 1 become 4 because 32 int32_t = 4 bytes:
           if( (wbctrl_addr_buf-ADDR_OFFSET) == 0) begin
-            wb_data_o <= operation;
+            wbs_dat_o <= operation;
             wb_state <= READ_DONE; // Read done
             wbctrl_mem_addr <= 0;
           end
           else if( (wbctrl_addr_buf-ADDR_OFFSET) == 4 ) begin
-            wb_data_o <= status;
+            wbs_dat_o <= status;
             wb_state <= READ_DONE; // Read done
             wbctrl_mem_addr <= 0;
           end
@@ -358,14 +358,14 @@ module AI_Accelerator_Top #(
         end
         WAIT_READ_DONE: begin // Wait for reading done
           if ( mem_opdone ) begin
-            wb_data_o <= sram_data_o;
+            wbs_dat_o <= sram_data_o;
             wbctrl_mem_op <= 2'b00;
             wb_state <= READ_DONE; // Go to read done
           end
         end
         READ_DONE: begin // Read done
-          //$display("Read %d from %x (%x)", $signed(wb_data_o), wbctrl_mem_addr, wbctrl_addr_buf);
-          wb_ack <= 1'b1;
+          //$display("Read %d from %x (%x)", $signed(wbs_dat_o), wbctrl_mem_addr, wbctrl_addr_buf);
+          wbs_ack_o <= 1'b1;
           wb_state <= IDLE; // Return to Idle stat
         end
         WAIT_WRITE_DONE: begin // Wait write for done
@@ -376,7 +376,7 @@ module AI_Accelerator_Top #(
         end
         WRITE_DONE: begin // Wait write for done
           //$display("Wrote %d to %x (%x)", $signed(wbctrl_data_buf), wbctrl_mem_addr, wbctrl_addr_buf);
-          wb_ack <= 1'b1;
+          wbs_ack_o <= 1'b1;
           wb_state <= IDLE; // Return to Idle state
         end
       endcase

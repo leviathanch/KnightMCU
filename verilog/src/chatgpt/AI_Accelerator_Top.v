@@ -72,6 +72,8 @@ module AI_Accelerator_Top #(
       status <= 0;
       mem_write_wait <= 0;
       mem_read_wait <= 0;
+      sram_we <= 4'b0000;
+      sram_en <= 0;
     end
     else if ( mem_read_wait ) begin
       if( sram_addr != sram_data_o ) begin
@@ -274,13 +276,11 @@ module AI_Accelerator_Top #(
   localparam READ_DONE = 6;
   localparam WRITE_DONE = 7;
 
-  always @(posedge wb_clk_i or posedge wb_rst_i) begin
+  always @(posedge wb_clk_i) begin
     if (wb_rst_i) begin
       wb_state <= IDLE;
       wb_ack <= 1'b0;
       wb_data_o <= 32'b0;
-      sram_we <= 4'b0000;
-      sram_en <= 0;
       wbctrl_mem_op <= 2'b00;
       wbctrl_mem_addr <= 32'b0;
       wbctrl_mem_data <= 32'b0;

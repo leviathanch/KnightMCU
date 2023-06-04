@@ -26,7 +26,15 @@ module AI_Accelerator_Top #(
   output wire [15:0] io_out, // Debug LEDs pin [15:8]
   output wire [15:0] io_oeb
 );
-  
+  // Logic Analyzer
+  wire rst;
+  assign la_data_out = {{(127-64){1'b0}}, sram_data_i, sram_data_o};
+  assign rst = (~la_oenb[65]) ? la_data_in[65]: wb_rst_i;
+
+ // IO
+  assign io_out = {operation[1:0],{(15-2){1'b0}}};
+  assign io_oeb = {(15){rst}};
+
   // Parallelism
   reg [31:0] p;
 

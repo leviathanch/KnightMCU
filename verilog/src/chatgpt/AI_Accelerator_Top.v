@@ -29,6 +29,11 @@ module AI_Accelerator_Top #(
   // IRQ
   output [2:0] irq
 );
+
+  // The clock net
+  wire clk;
+  assign clk = wb_clk_i;
+
   // Logic Analyzer
   wire rst;
   assign la_data_out = {{(127-64){1'b0}}, sram_data_i, sram_data_o};
@@ -61,7 +66,7 @@ module AI_Accelerator_Top #(
     .VPWR(vccd1),
     .VGND(vccd1),
 `endif
-    .CLK(wb_clk_i),
+    .CLK(clk),
     .WE0(sram_we),
     .EN0(sram_en),
     .Di0(sram_data_i),
@@ -77,7 +82,7 @@ module AI_Accelerator_Top #(
   reg mem_opdone;
   reg [1:0] mem_ctl_state;
 
-  always @(posedge wb_clk_i) begin
+  always @(posedge clk) begin
     if (wb_rst_i) begin
       mem_opdone <= 0;
       sram_we <= 4'b0000;
@@ -174,7 +179,7 @@ module AI_Accelerator_Top #(
     .vccd1(vccd1),	// User area 1 1.8V supply
     .vssd1(vssd1),	// User area 1 digital ground
 `endif
-    .clk(wb_clk_i),
+    .clk(clk),
     .reset(wb_rst_i),
     .enable(multiplier_enable),
     .done(matrix_mult_done),
@@ -197,7 +202,7 @@ module AI_Accelerator_Top #(
     .vccd1(vccd1),	// User area 1 1.8V supply
     .vssd1(vssd1),	// User area 1 digital ground
 `endif
-    .clk(wb_clk_i),
+    .clk(clk),
     .reset(wb_rst_i),
     .enable(convolution_enable),
     .done(matrix_conv_done),
@@ -221,7 +226,7 @@ module AI_Accelerator_Top #(
   reg busy;
   reg started;
   reg finished;
-  always @(posedge wb_clk_i) begin
+  always @(posedge clk) begin
     if (wb_rst_i) begin
       busy <= 1'b0;
       started <= 1'b0;
@@ -288,7 +293,7 @@ module AI_Accelerator_Top #(
   localparam READ_DONE = 6;
   localparam WRITE_DONE = 7;
 
-  always @(posedge wb_clk_i) begin
+  always @(posedge clk) begin
     if (wb_rst_i) begin
       wb_state <= IDLE;
       wbs_ack_o <= 1'b0;

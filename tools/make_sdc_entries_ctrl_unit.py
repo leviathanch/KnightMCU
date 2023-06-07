@@ -12,10 +12,12 @@ commands = [
 for command in commands:
 
     for i in range(32):
-        print(command+" [get_ports {data_i["+str(i)+"]}]")
-        print(command+" [get_ports {data_o["+str(i)+"]}]")
-        print(command+" [get_ports {addr_o["+str(i)+"]}]")
+        print(command+" [get_ports {status["+str(i)+"]}]")
+        print(command+" [get_ports {operation["+str(i)+"]}]")
 
     print(command+" [get_ports {reset}]")
-    print(command+" [get_ports {enable}]")
-    print(command+" [get_ports {done}]")
+    print(command+" [get_ports {finished}]")
+    print(command+" [get_ports {matrix_mult_done}]")
+    print(command+" [get_ports {matrix_conv_done}]")
+    print(command+" [get_ports {multiplier_enable}]")
+    print(command+" [get_ports {convolution_enable}]")

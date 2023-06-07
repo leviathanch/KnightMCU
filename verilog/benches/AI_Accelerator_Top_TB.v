@@ -71,7 +71,7 @@ module AI_Accelerator_Top_TB;
   end
 
   // WB access job
-  reg [`TYPE_BW-1:0] data;
+  reg [31:0] data;
   reg [31:0] addr;
   integer direction;
   reg opdone;
@@ -104,7 +104,7 @@ module AI_Accelerator_Top_TB;
       wb_cycle = 0;
       wb_stb = 0;
       #1;
-      data = wb_data_o[`TYPE_BW-1:0];
+      data = wb_data_o[31:0];
       #10;
       direction = 0;
       opdone = 1;

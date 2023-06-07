@@ -20,7 +20,8 @@ Rest: Matrices and results
 Plus space for the calculations
 */
 
-`define TYPE_BW 32 // int32_t
-//`define TYPE_BW 16 // int16_t
+`define MULTIPLICATION_OPERATION 31'h1
+`define CONVOLUTION_OPERATION 31'h2
 
 `endif // __GLOBAL_DEFINE_H
+

@@ -13,8 +13,8 @@ module AI_Accelerator_Top #(
   input wire [3:0]   wbs_sel_i,
   input wire [31:0]  wbs_adr_i,
   input wire [31:0]  wbs_dat_i,
-  output reg         wbs_ack_o, // the readyness signal
-  output reg [31:0]  wbs_dat_o,
+  output wire         wbs_ack_o, // the readyness signal
+  output wire [31:0]  wbs_dat_o,
 
   // Logic Analyzer Signals
   input  [127:0] la_data_in,
@@ -32,33 +32,17 @@ module AI_Accelerator_Top #(
 
   // The clock net
   wire clk;
-  assign clk = wb_clk_i;
 
   // Logic Analyzer
-  wire rst;
-  assign la_data_out = {{(127-64){1'b0}}, sram_data_i, sram_data_o};
-  assign rst = (~la_oenb[65]) ? la_data_in[65]: wb_rst_i;
-
-  // IRQ
-  assign irq = 3'b000;	// Unused
-
-  // IO
-  assign io_out = {operation[1:0],{(15-2){1'b0}}};
-  assign io_oeb = {(15){rst}};
+  wire reset;
 
   // Parallelism
-  reg [31:0] p;
+  wire [31:0] p;
 
-  // Status registers
-  // 1: mutiply, 2: convolution
-  reg [31:0] operation;
-  // -1 for ready to start,
-  //changes to error code or 0 for ok
-  reg [31:0] status;
-  reg [3:0] sram_we;
-  reg sram_en;
-  reg [`KICP_SRAM_AWIDTH-1:0] sram_addr;
-  reg [31:0] sram_data_i;
+  wire [3:0] sram_we;
+  wire sram_en;
+  wire [`KICP_SRAM_AWIDTH-1:0] sram_addr;
+  wire [31:0] sram_data_i;
   wire [31:0] sram_data_o;
 
   RAM256 sram (
@@ -77,97 +61,39 @@ module AI_Accelerator_Top #(
   /*
     Memory controller
   */
-  reg mem_read_wait;
-  reg mem_write_wait;
-  reg mem_opdone;
-  reg [1:0] mem_ctl_state;
+  wire mem_opdone;
+  Memory_Controller mem_ctrl (
+`ifdef USE_POWER_PINS
+    .vccd1(vccd1),	// User area 1 1.8V supply
+    .vssd1(vssd1),	// User area 1 digital ground
+`endif
+    .clk(clk),
+    .reset(reset),
+    
+    .mem_opdone(mem_opdone),
 
-  always @(posedge clk) begin
-    if (wb_rst_i) begin
-      mem_opdone <= 0;
-      sram_we <= 4'b0000;
-      sram_en <= 0;
-      mem_write_wait <= 0;
-      mem_read_wait <= 0;
-      sram_we <= 4'b0000;
-      sram_en <= 0;
-    end
-    else if ( mem_read_wait ) begin
-      if( sram_addr != sram_data_o ) begin
-        mem_opdone <= 1;
-        mem_read_wait  <= 0;
-        sram_en <= 0;
-        sram_we <= 4'b0000;
-      end
-    end
-    else if ( mem_write_wait ) begin
-      if( sram_data_i == sram_data_o ) begin
-        mem_opdone <= 1;
-        mem_write_wait  <= 0;
-        sram_we <= 4'b0000;
-        sram_en <= 0;
-      end
-    end
-    else if ( mem_opdone ) begin
-      mem_opdone <= 0;
-    end
-    else if (! mem_opdone ) begin
-      if ( wbctrl_mem_op == 2'b01 ) begin // Read
-          sram_we <= 4'b0000;
-          sram_en <= 1;
-          sram_addr <= wbctrl_mem_addr;
-          mem_read_wait <= 1;
-          //$display("WB reading %x", wbctrl_mem_addr);
-      end
-      else if ( wbctrl_mem_op == 2'b11 ) begin // Write
-          sram_we <= 4'b1111;
-          sram_en <= 1;
-          sram_addr <= wbctrl_mem_addr;
-          sram_data_i <= wbctrl_mem_data;
-          mem_write_wait <= 1;
-          //$display("WB writing %x", wbctrl_mem_addr);
-      end
-      else begin
-        case ( operation ) // Register 1 holds the operation to be executed
-          // Enable corresponding module based on operation value in operation register
-          `TYPE_BW'h1: begin // matrix multiplication
-            case (mmul_mem_op)
-              2'b01: begin // Read
-                sram_en <= 1;
-                sram_addr <= mmul_addr_o[`KICP_SRAM_AWIDTH-1:0];
-                mem_read_wait <= 1;
-              end
-              2'b11: begin // Write
-                sram_we <= 4'b1111;
-                sram_en <= 1;
-                sram_addr <= mmul_addr_o[`KICP_SRAM_AWIDTH-1:0];
-                sram_data_i <= mmul_data_o;
-                mem_write_wait <= 1;
-                //$display("Got result %d for address %x", $signed(mmul_data_o), mmul_addr_o);
-              end
-            endcase
-          end
-          `TYPE_BW'h2: begin // matrix convolution
-            case (mconv_mem_op)
-              2'b01: begin // Read
-                sram_en <= 1;
-                sram_addr <= mconv_addr_o[`KICP_SRAM_AWIDTH-1:0];
-                mem_read_wait <= 1;
-              end
-              2'b11: begin // Write
-                sram_we <= 4'b1111;
-                sram_en <= 1;
-                sram_addr <= mconv_addr_o[`KICP_SRAM_AWIDTH-1:0];
-                sram_data_i <= mconv_data_o;
-                mem_write_wait <= 1;
-                //$display("Got result %d for address %x", $signed(mconv_data_o), mconv_addr_o);
-              end
-            endcase
-          end
-        endcase
-      end
-    end
-  end
+    .sram_we(sram_we),
+    .sram_en(sram_en),
+    .sram_addr(sram_addr),
+    .sram_data_i(sram_data_i),
+    .sram_data_o(sram_data_o),
+
+    // DMA access from Wishbone
+    .wbctrl_mem_op(wbctrl_mem_op),
+    .wbctrl_mem_addr(wbctrl_mem_addr),
+    .wbctrl_mem_data(wbctrl_mem_data),
+    .operation(operation),
+
+    // DMA from Matrix multiplication core
+    .mmul_mem_op(mmul_mem_op),
+    .mmul_data(mmul_data),
+    .mmul_addr(mmul_addr),
+
+    // DMA from Matrix convolution core
+    .mconv_mem_op(mconv_mem_op),
+    .mconv_data(mconv_data),
+    .mconv_addr(mconv_addr)
+  );
 
   /*
     All the modules go here:
@@ -180,20 +106,19 @@ module AI_Accelerator_Top #(
     .vssd1(vssd1),	// User area 1 digital ground
 `endif
     .clk(clk),
-    .reset(wb_rst_i),
+    .reset(reset),
     .enable(multiplier_enable),
     .done(matrix_mult_done),
-    .addr_o(mmul_addr_o),
+    .addr_o(mmul_addr),
     .data_i(sram_data_o),
-    .data_o(mmul_data_o),
+    .data_o(mmul_data),
     .mem_opdone(mem_opdone),
     .mem_operation(mmul_mem_op)
   );
   // Matrix multiplication result wire
-  reg multiplier_enable; // on switch
   wire matrix_mult_done; // status wire
-  wire [`TYPE_BW-1:0] mmul_data_o;
-  wire [31:0] mmul_addr_o;
+  wire [31:0] mmul_data;
+  wire [31:0] mmul_addr;
   wire [1:0] mmul_mem_op; // Read 01 /Write 11 /None 00
 
   // Matrix Convolution
@@ -203,189 +128,99 @@ module AI_Accelerator_Top #(
     .vssd1(vssd1),	// User area 1 digital ground
 `endif
     .clk(clk),
-    .reset(wb_rst_i),
+    .reset(reset),
     .enable(convolution_enable),
     .done(matrix_conv_done),
-    .addr_o(mconv_addr_o),
+    .addr_o(mconv_addr),
     .data_i(sram_data_o),
-    .data_o(mconv_data_o),
+    .data_o(mconv_data),
     .mem_opdone(mem_opdone),
     .mem_operation(mconv_mem_op)
   );
-  reg convolution_enable; // on switch
   wire matrix_conv_done; // status wire
-  wire [`TYPE_BW-1:0] mconv_data_o;
-  wire [31:0] mconv_addr_o;
+  wire [31:0] mconv_data;
+  wire [31:0] mconv_addr;
   wire [1:0] mconv_mem_op; // Read 01 /Write 11 /None 00
-  
+
   /*
     Control Unit
     Manages the current operation and changes the value
-    in the status register
+    in the status wireister
   */
-  reg busy;
-  reg started;
-  reg finished;
-  always @(posedge clk) begin
-    if (wb_rst_i) begin
-      busy <= 1'b0;
-      started <= 1'b0;
-      multiplier_enable <= 1'b0;
-      convolution_enable <= 1'b0;
-      finished <= 0;
-    end
-    else if ( started && busy ) begin
-      started <= 0;
-    end
-    else if ( status == `TYPE_BW'h0000_0000 && finished ) begin
-       finished <= 0;
-    end
-    else if ( !finished ) begin
-      case ( operation ) // Register 1 holds the operation to be executed
-        // Enable corresponding module based on operation value in operation register
-        `TYPE_BW'h1: begin // matrix multiplication
-          if( matrix_mult_done && busy ) begin
-            busy <= 1'b0;
-            multiplier_enable <= 1'b0; // Enable matrix multiplication module
-            finished <= 1; // Done
-          end
-          else if ( status == `TYPE_BW'hffff_ffff ) begin
-            busy <= 1'b1; // indicate that we started operation
-            multiplier_enable <= 1'b1; // Enable matrix multiplication module
-            started <= 1'b1;
-          end
-        end
-        `TYPE_BW'h2: begin // matrix convolution
-          if( matrix_conv_done && busy ) begin
-            busy <= 1'b0;
-            convolution_enable <= 1'b0; // Enable matrix multiplication module
-            finished <= 1; // Done
-          end
-          else if ( status == `TYPE_BW'hffff_ffff ) begin
-            busy <= 1'b1; // indicate that we started operation
-            convolution_enable <= 1'b1; // Enable matrix multiplication module
-            started <= 1'b1;
-          end
-        end
-      endcase
-    end
-  end
+  wire multiplier_enable;
+  wire convolution_enable;
+  wire finished;
+  Control_Unit ctrl_unit (
+`ifdef USE_POWER_PINS
+    .vccd1(vccd1),	// User area 1 1.8V supply
+    .vssd1(vssd1),	// User area 1 digital ground
+`endif
+    .clk(clk),
+    .reset(reset),
+    .operation(operation),
+    .status(status),
+    .matrix_mult_done(matrix_mult_done),
+    .matrix_conv_done(matrix_conv_done),
+    .multiplier_enable(multiplier_enable),
+    .convolution_enable(convolution_enable),
+    .finished(finished)
+  );
 
   /*
     Wishbone slave controller.
     Manages read and write operations from master.
     Implemented by ChatGPT
   */
-  reg [1:0] wbctrl_mem_op; // Read 01 /Write 11 /None 00
-  reg [31:0] wbctrl_mem_addr;
-  reg [31:0] wbctrl_mem_data;
-  reg [31:0] wbctrl_addr_buf;
-  reg [31:0] wbctrl_data_buf;
+  // Status wireisters
+  // 1: mutiply, 2: convolution
+  wire [31:0] operation;
+  // -1 for ready to start,
+  //changes to error code or 0 for ok
+  wire [31:0] status;
 
-  integer wb_state;
+  wire [1:0] wbctrl_mem_op; // Read 01 /Write 11 /None 00
+  wire [31:0] wbctrl_mem_addr;
+  wire [31:0] wbctrl_mem_data;
 
-  localparam IDLE = 0;
-  localparam WRITE = 1;
-  localparam READ = 2;
-  localparam WAIT_READ = 3;
-  localparam WAIT_READ_DONE = 4;
-  localparam WAIT_WRITE_DONE = 5;
-  localparam READ_DONE = 6;
-  localparam WRITE_DONE = 7;
-
-  always @(posedge clk) begin
-    if (wb_rst_i) begin
-      wb_state <= IDLE;
-      wbs_ack_o <= 1'b0;
-      wbs_dat_o <= 32'b0;
-      wbctrl_mem_op <= 2'b00;
-      wbctrl_mem_addr <= 32'b0;
-      wbctrl_mem_data <= 32'b0;
-      wbctrl_addr_buf <= 32'b0;
-      wbctrl_data_buf <= 32'b0;
-      status <= 0;
-      operation <= 0;
-    end
-    else if (finished) begin
-      status <= 0;
-    end
-    else begin
-      case (wb_state)
-        IDLE: begin // Idle state
-          wbs_ack_o <= 1'b0;
-          if (wbs_cyc_i && wbs_stb_i && !wbs_ack_o) begin
-            wbctrl_addr_buf <= wbs_adr_i;
-            wbctrl_data_buf <= wbs_dat_i;
-            wbs_dat_o <= 32'h0000_0000;
-            if (wbs_we_i) begin // Writing requested
-              wb_state <= WRITE; // Write state
-            end else begin // Reading requested
-              wb_state <= READ; // Read state
-            end
-          end
-        end
-        READ: begin // Read state
-          // increments of 1 become 4 because 32 int32_t = 4 bytes:
-          if( (wbctrl_addr_buf-ADDR_OFFSET) == 0) begin
-            wbs_dat_o <= operation;
-            wb_state <= READ_DONE; // Read done
-            wbctrl_mem_addr <= 0;
-          end
-          else if( (wbctrl_addr_buf-ADDR_OFFSET) == 4 ) begin
-            wbs_dat_o <= status;
-            wb_state <= READ_DONE; // Read done
-            wbctrl_mem_addr <= 0;
-          end
-          else begin
-            wbctrl_mem_op <= 2'b01;
-            wbctrl_mem_addr <= (wbctrl_addr_buf-ADDR_OFFSET)/4-2;
-            wb_state <= WAIT_READ_DONE; // Read state
-          end
-        end
-        WRITE: begin // Write state
-          // increments of 1 become 4 because 32 int32_t = 4 bytes:
-          if( (wbctrl_addr_buf-ADDR_OFFSET) == 0 ) begin
-            operation <= wbctrl_data_buf;
-            wb_state <= WRITE_DONE; // Write done
-            wbctrl_mem_addr <= 0;
-          end
-          else if( (wbctrl_addr_buf-ADDR_OFFSET) == 4 ) begin
-            status <= wbctrl_data_buf;
-            wb_state <= WRITE_DONE; // Write done
-            wbctrl_mem_addr <= 0;
-          end
-          else begin
-            wbctrl_mem_op <= 2'b11;
-            wbctrl_mem_data <= wbctrl_data_buf;
-            wbctrl_mem_addr <= (wbctrl_addr_buf-ADDR_OFFSET)/4-2;
-            wb_state <= WAIT_WRITE_DONE; // Wait for write finished
-          end
-        end
-        WAIT_READ_DONE: begin // Wait for reading done
-          if ( mem_opdone ) begin
-            wbs_dat_o <= sram_data_o;
-            wbctrl_mem_op <= 2'b00;
-            wb_state <= READ_DONE; // Go to read done
-          end
-        end
-        READ_DONE: begin // Read done
-          //$display("Read %d from %x (%x)", $signed(wbs_dat_o), wbctrl_mem_addr, wbctrl_addr_buf);
-          wbs_ack_o <= 1'b1;
-          wb_state <= IDLE; // Return to Idle stat
-        end
-        WAIT_WRITE_DONE: begin // Wait write for done
-          if ( mem_opdone ) begin
-            wbctrl_mem_op <= 2'b00;
-            wb_state <= WRITE_DONE; // Write done
-          end
-        end
-        WRITE_DONE: begin // Wait write for done
-          //$display("Wrote %d to %x (%x)", $signed(wbctrl_data_buf), wbctrl_mem_addr, wbctrl_addr_buf);
-          wbs_ack_o <= 1'b1;
-          wb_state <= IDLE; // Return to Idle state
-        end
-      endcase
-    end
-  end
+  Wishbone_Slave_Controller #(ADDR_OFFSET) wb_slave_ctrl (
+`ifdef USE_POWER_PINS
+    .vccd1(vccd1),	// User area 1 1.8V supply
+    .vssd1(vssd1),	// User area 1 digital ground
+`endif
+    // Wishbone
+    .wb_clk_i(wb_clk_i),
+    .wb_rst_i(wb_rst_i),
+    .wb_stb_i(wbs_stb_i),
+    .wb_cyc_i(wbs_cyc_i),
+    .wb_we_i(wbs_we_i),
+    .wb_sel_i(wbs_sel_i),
+    .wb_adr_i(wbs_adr_i),
+    .wb_data_i(wbs_dat_i),
+    .wb_data_o(wbs_dat_o),
+    .wb_ack_o(wbs_ack_o),
+    // DMA
+    .sram_data(sram_data_o),
+    // System
+    .finished(finished),
+    .status(status),
+    .operation(operation),
+    .mem_opdone(mem_opdone),
+    .wbctrl_mem_op(wbctrl_mem_op),
+    .wbctrl_mem_addr(wbctrl_mem_addr),
+    .wbctrl_mem_data(wbctrl_mem_data),
+    // System clock and reset
+    .clk(clk),
+    .reset(reset),
+    // Logic Analyzer Signals
+    .la_data_in(la_data_in),
+    .la_data_out(la_data_out), // Debug LEDs pin [15:8]
+    .la_oenb(la_oenb),
+    // IOs
+    .io_in(io_in),
+    .io_out(io_out),
+    .io_oeb(io_oeb),
+    // IRQ
+    .irq(irq)
+  );
   
 endmodule

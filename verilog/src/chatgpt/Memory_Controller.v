@@ -21,12 +21,12 @@ module Memory_Controller (
   // DMA from Matrix multiplication core
   input wire [1:0] mmul_mem_op, // Read 01 /Write 11 /None 00
   input wire [31:0] mmul_data,
-  input wire [31:0] mmul_addr,
+  input wire [`KICP_SRAM_AWIDTH-1:0] mmul_addr,
 
   // DMA from Matrix convolution core
   input wire [1:0] mconv_mem_op, // Read 01 /Write 11 /None 00
   input wire [31:0] mconv_data,
-  input wire [31:0] mconv_addr
+  input wire [`KICP_SRAM_AWIDTH-1:0] mconv_addr
   
 );
   reg mem_read_wait;

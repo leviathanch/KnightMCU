@@ -9,7 +9,7 @@ module Matrix_Multiplication (
   input wire         mem_opdone,
   input wire [31:0] data_i,
   output reg [31:0] data_o,
-  output reg [31:0]  addr_o,
+  output reg [`KICP_SRAM_AWIDTH-1:0]  addr_o,
   output reg [1:0]   mem_operation, // Read 01 /Write 11 /None 00
   output reg         done
 );

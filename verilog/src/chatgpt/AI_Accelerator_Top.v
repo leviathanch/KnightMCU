@@ -118,7 +118,7 @@ module AI_Accelerator_Top #(
   // Matrix multiplication result wire
   wire matrix_mult_done; // status wire
   wire [31:0] mmul_data;
-  wire [31:0] mmul_addr;
+  wire [`KICP_SRAM_AWIDTH-1:0] mmul_addr;
   wire [1:0] mmul_mem_op; // Read 01 /Write 11 /None 00
 
   // Matrix Convolution
@@ -139,7 +139,7 @@ module AI_Accelerator_Top #(
   );
   wire matrix_conv_done; // status wire
   wire [31:0] mconv_data;
-  wire [31:0] mconv_addr;
+  wire [`KICP_SRAM_AWIDTH-1:0] mconv_addr;
   wire [1:0] mconv_mem_op; // Read 01 /Write 11 /None 00
 
   /*

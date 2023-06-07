@@ -57,8 +57,8 @@ module Wishbone_Slave_Controller
   assign io_oeb = {(15){rst}};
 
   integer wb_state;
-  output reg [31:0] wbctrl_addr_buf;
-  output reg [31:0] wbctrl_data_buf;
+  reg [31:0] wbctrl_addr_buf;
+  reg [31:0] wbctrl_data_buf;
 
   localparam IDLE = 0;
   localparam WRITE = 1;

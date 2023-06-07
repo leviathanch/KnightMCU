@@ -14,7 +14,7 @@ module Memory_Controller (
 
   // DMA access from Wishbone
   input wire [1:0] wbctrl_mem_op,
-  input wire [31:0] wbctrl_mem_addr,
+  input wire [`KICP_SRAM_AWIDTH-1:0] wbctrl_mem_addr,
   input wire [31:0] wbctrl_mem_data,
   input wire [31:0] operation,
 

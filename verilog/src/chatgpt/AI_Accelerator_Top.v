@@ -179,7 +179,7 @@ module AI_Accelerator_Top #(
   wire [31:0] status;
 
   wire [1:0] wbctrl_mem_op; // Read 01 /Write 11 /None 00
-  wire [31:0] wbctrl_mem_addr;
+  wire [`KICP_SRAM_AWIDTH-1:0] wbctrl_mem_addr;
   wire [31:0] wbctrl_mem_data;
 
   Wishbone_Slave_Controller #(ADDR_OFFSET) wb_slave_ctrl (

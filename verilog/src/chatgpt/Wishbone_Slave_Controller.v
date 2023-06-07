@@ -24,7 +24,7 @@ module Wishbone_Slave_Controller
   output reg [31:0] status,
   output reg [31:0] operation,
   output reg [1:0] wbctrl_mem_op, // Read 01 /Write 11 /None 00
-  output reg [31:0] wbctrl_mem_addr,
+  output reg [`KICP_SRAM_AWIDTH-1:0] wbctrl_mem_addr,
   output reg [31:0] wbctrl_mem_data,
   output wire clk,
   output wire reset,

@@ -1,5 +1,5 @@
 module AI_Accelerator_Top #(
-  parameter ADDR_OFFSET = 32'h3000_0000
+  parameter ADDR_OFFSET = 32'h3200_0000
 ) (
 `ifdef USE_POWER_PINS
     inout vccd1,	// User area 1 1.8V supply

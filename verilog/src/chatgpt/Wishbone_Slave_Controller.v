@@ -1,6 +1,6 @@
 module Wishbone_Slave_Controller
 #(
-  parameter ADDR_OFFSET = 32'h3000_0000
+  parameter ADDR_OFFSET = 32'h3200_0000
 )
 (
 `ifdef USE_POWER_PINS

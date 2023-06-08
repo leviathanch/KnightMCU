@@ -75,7 +75,7 @@ module Wishbone_Slave_Controller
       wb_ack_o <= 1'b0;
       wb_data_o <= 32'b0;
       wbctrl_mem_op <= 2'b00;
-      wbctrl_mem_addr <= 32'b0;
+      wbctrl_mem_addr <= `KICP_SRAM_AWIDTH'b0;
       wbctrl_mem_data <= 32'b0;
       wbctrl_addr_buf <= 32'b0;
       wbctrl_data_buf <= 32'b0;
@@ -105,12 +105,12 @@ module Wishbone_Slave_Controller
           if( (wbctrl_addr_buf-ADDR_OFFSET) == 0) begin
             wb_data_o <= operation;
             wb_state <= READ_DONE; // Read done
-            wbctrl_mem_addr <= 0;
+            wbctrl_mem_addr <= `KICP_SRAM_AWIDTH'b0;
           end
           else if( (wbctrl_addr_buf-ADDR_OFFSET) == 4 ) begin
             wb_data_o <= status;
             wb_state <= READ_DONE; // Read done
-            wbctrl_mem_addr <= 0;
+            wbctrl_mem_addr <= `KICP_SRAM_AWIDTH'b0;
           end
           else begin
             wbctrl_mem_op <= 2'b01;
@@ -123,12 +123,12 @@ module Wishbone_Slave_Controller
           if( (wbctrl_addr_buf-ADDR_OFFSET) == 0 ) begin
             operation <= wbctrl_data_buf;
             wb_state <= WRITE_DONE; // Write done
-            wbctrl_mem_addr <= 0;
+            wbctrl_mem_addr <= `KICP_SRAM_AWIDTH'b0;
           end
           else if( (wbctrl_addr_buf-ADDR_OFFSET) == 4 ) begin
             status <= wbctrl_data_buf;
             wb_state <= WRITE_DONE; // Write done
-            wbctrl_mem_addr <= 0;
+            wbctrl_mem_addr <= `KICP_SRAM_AWIDTH'b0;
           end
           else begin
             wbctrl_mem_op <= 2'b11;
